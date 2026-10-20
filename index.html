@@ -1,226 +1,352 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
   <title>Celestial VR Explorer</title>
-
-  <!-- Load A-Frame from CDN -->
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-
   <style>
-    body { margin: 0; overflow: hidden; font-family: sans-serif; }
-    /* Hide the default A-Frame VR button text for a cleaner look */
-    .a-enter-vr { display: none; }
+    html, body {
+      margin: 0; padding: 0; overflow: hidden; height: 100%;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+    }
+
+    /* Info overlay (HTML, always readable) */
+    #info-overlay {
+      position: fixed;
+      bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+      left: 16px; right: 16px;
+      max-width: 480px;
+      margin: 0 auto;
+      background: rgba(10, 10, 30, 0.95);
+      color: #fff;
+      padding: 18px 22px;
+      border-radius: 14px;
+      border: 1px solid rgba(100, 150, 255, 0.5);
+      box-shadow: 0 6px 30px rgba(80, 130, 255, 0.4);
+      display: none;
+      z-index: 10000;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #info-overlay h2 {
+      margin: 0 0 10px 0;
+      color: #FFD700;
+      font-size: 20px;
+      padding-right: 30px;
+    }
+    #info-overlay p {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.55;
+      color: #cce0ff;
+    }
+    #close-btn {
+      position: absolute;
+      top: 10px; right: 12px;
+      background: rgba(255,255,255,0.12);
+      border: none;
+      color: #fff;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      line-height: 1;
+    }
+    #close-btn:hover { background: rgba(255,255,255,0.25); }
+
+    #hint {
+      position: fixed;
+      top: calc(20px + env(safe-area-inset-top, 0px));
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      background: rgba(10, 20, 40, 0.8);
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      z-index: 9999;
+      pointer-events: none;
+      transition: opacity 1s;
+      white-space: nowrap;
+      border: 1px solid rgba(100,150,255,0.3);
+    }
   </style>
 </head>
 <body>
 
-  <a-scene
-    background="color: #000"
-    fog="type: exponential; color: #000; density: 0.001"
-    cursor="rayOrigin: mouse"
-    raycaster="objects: .clickable; far: 1000"
-  >
+<div id="hint">Tap any celestial object to learn about it</div>
+<div id="info-overlay">
+  <button id="close-btn" aria-label="Close">×</button>
+  <h2 id="info-title"></h2>
+  <p id="info-desc"></p>
+</div>
 
-    <!-- ==================== ASSETS ==================== -->
-    <a-assets>
-      <!-- Procedural star field (using a simple gradient sphere as a sky) -->
-      <img id="skyTexture" src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
+<a-scene
+  device-orientation-permission-ui="enabled: true"
+  cursor="rayOrigin: mouse; fuse: false"
+  raycaster="objects: .clickable; far: 3000"
+  renderer="antialias: true"
+  background="color: #000005"
+>
+  <!-- Camera rig -->
+  <a-entity id="rig" position="0 1.6 0">
+    <a-entity
+      id="camera"
+      camera="fov: 80; near: 0.1; far: 3000"
+      look-controls="magicWindowTrackingEnabled: true; touchEnabled: true; mouseEnabled: true">
 
-      <!-- Planet textures (public domain / NASA-like images from A-Frame examples) -->
-      <img id="sunTex"      src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
-      <img id="earthTex"    src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
-      <img id="marsTex"     src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
-      <img id="jupiterTex"  src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
-      <img id="saturnTex"   src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
-
-      <!-- For a more realistic look, replace the above with actual planet textures:
-           e.g., https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg
-           (Note: ensure CORS is allowed or download the textures locally.) -->
-    </a-assets>
-
-    <!-- ==================== SKY ==================== -->
-    <a-sky src="#skyTexture" rotation="0 -130 0"></a-sky>
-
-    <!-- ==================== CAMERA RIG ==================== -->
-    <!-- The rig allows movement; the camera handles look‑around (gyro on mobile). -->
-    <a-entity id="rig" position="0 1.6 0">
-      <a-entity id="camera" camera look-controls wasd-controls position="0 0 0">
-        <!-- Gaze cursor for selection -->
-        <a-entity
-          cursor="fuse: true; fuseTimeout: 800"
-          raycaster="objects: .clickable; far: 1000"
-          position="0 0 -1"
-          geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.015"
-          material="color: #FFF; opacity: 0.8"
-          animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.5 0.5 0.5; dur: 800"
-          animation__mouseleave="property: scale; startEvents: mouseleave; from: 0.5 0.5 0.5; to: 1 1 1; dur: 200"
-        ></a-entity>
-      </a-entity>
-    </a-entity>
-
-    <!-- ==================== INFO PANEL ==================== -->
-    <!-- This panel appears when a celestial object is selected. -->
-    <a-entity id="infoPanel" visible="false" position="0 1.5 -2" geometry="primitive: plane; width: 1.5; height: 0.8" material="color: #111; opacity: 0.9">
-      <a-text id="infoTitle" value="Object Name" align="center" width="1.4" position="0 0.25 0.01" color="#FFD700"></a-text>
-      <a-text id="infoDesc" value="Description goes here." align="center" width="1.4" wrap-count="40" position="0 0 0.01" color="#FFF"></a-text>
-      <!-- Close button -->
+      <!-- Gaze cursor (for VR headsets) -->
       <a-entity
-        id="closeBtn"
-        geometry="primitive: plane; width: 0.3; height: 0.1"
-        material="color: #900"
-        position="0 -0.35 0.01"
-        text="value: CLOSE; align: center; width: 0.28; color: #FFF"
-        class="clickable"
+        cursor="fuse: true; fuseTimeout: 900; rayOrigin: entity"
+        raycaster="objects: .clickable; far: 3000"
+        position="0 0 -1"
+        geometry="primitive: ring; radiusInner: 0.008; radiusOuter: 0.012"
+        material="color: #66ccff; shader: flat; opacity: 0.7"
+        animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.5 0.5 0.5; dur: 900"
+        animation__mouseleave="property: scale; startEvents: mouseleave; from: 0.5 0.5 0.5; to: 1 1 1; dur: 200"
       ></a-entity>
     </a-entity>
+  </a-entity>
 
-    <!-- ==================== CELESTIAL OBJECTS ==================== -->
-    <!-- Each object has class="clickable" and a data‑ attribute for its info. -->
+  <!-- Lighting -->
+  <a-entity light="type: ambient; color: #404060; intensity: 1"></a-entity>
+  <a-entity light="type: point; color: #ffddaa; intensity: 2; distance: 200" position="0 6 -20"></a-entity>
 
-    <!-- SUN -->
+  <!-- SUN -->
+  <a-sphere
+    class="clickable"
+    data-name="Sun"
+    data-desc="The Sun is a G-type main-sequence star at the center of our Solar System. It contains 99.86% of the system's mass and is the source of light and heat for all planets."
+    position="0 6 -20" radius="3.5"
+    material="color: #FFD700; emissive: #FF8C00; emissiveIntensity: 1.5; shader: standard">
+  </a-sphere>
+
+  <!-- EARTH -->
+  <a-sphere
+    class="clickable"
+    data-name="Earth"
+    data-desc="Earth is the third planet from the Sun and the only known astronomical object to harbor life. About 71% of its surface is covered with water."
+    position="12 2 -14" radius="1.2"
+    material="color: #2E6BC4; emissive: #0a1e3a; emissiveIntensity: 0.8; shader: standard">
+  </a-sphere>
+
+  <!-- MOON -->
+  <a-sphere
+    class="clickable"
+    data-name="Moon"
+    data-desc="The Moon is Earth's only natural satellite and the fifth-largest in the Solar System. It stabilizes Earth's axial tilt, giving us a stable climate."
+    position="14.5 0.5 -13" radius="0.35"
+    material="color: #cccccc; emissive: #222222; shader: standard">
+  </a-sphere>
+
+  <!-- MARS -->
+  <a-sphere
+    class="clickable"
+    data-name="Mars"
+    data-desc="Mars is the fourth planet from the Sun, known as the Red Planet due to iron oxide on its surface. It has the largest volcano in the Solar System."
+    position="-10 3 -12" radius="0.9"
+    material="color: #C1440E; emissive: #3a1405; emissiveIntensity: 0.8; shader: standard">
+  </a-sphere>
+
+  <!-- JUPITER -->
+  <a-sphere
+    class="clickable"
+    data-name="Jupiter"
+    data-desc="Jupiter is the largest planet in the Solar System. This gas giant has more than twice the mass of all other planets combined. Its Great Red Spot is a storm larger than Earth."
+    position="8 -2 -25" radius="2.5"
+    material="color: #D8A47F; emissive: #3a2510; emissiveIntensity: 0.8; shader: standard">
+  </a-sphere>
+
+  <!-- SATURN + Rings -->
+  <a-entity position="-14 0 -28">
     <a-sphere
-      id="sun"
       class="clickable"
-      data-name="Sun"
-      data-desc="The Sun is a G-type main-sequence star at the center of the Solar System. It contains 99.86% of the system's mass and is the source of light and heat for all planets."
-      position="0 1.5 -8"
-      radius="1.5"
-      material="color: #FFD700; emissive: #FF8C00; emissiveIntensity: 1.5"
-    ></a-sphere>
+      data-name="Saturn"
+      data-desc="Saturn is the sixth planet from the Sun and a gas giant. Famous for its stunning ring system, which is made mostly of ice particles and rocky debris."
+      radius="2"
+      material="color: #F4C430; emissive: #3a2b08; emissiveIntensity: 0.8; shader: standard">
+    </a-sphere>
+    <a-ring
+      class="clickable"
+      data-name="Saturn's Rings"
+      data-desc="Saturn's rings span up to 282,000 km across but are only about 10 meters thick. They're made of billions of ice particles and rocky debris orbiting the planet."
+      radius-inner="2.6" radius-outer="4.2" rotation="-75 0 0"
+      material="color: #E0C080; opacity: 0.75; side: double; shader: flat">
+    </a-ring>
+  </a-entity>
 
-    <!-- EARTH -->
+  <!-- VENUS -->
+  <a-sphere
+    class="clickable"
+    data-name="Venus"
+    data-desc="Venus is the second planet from the Sun and the hottest planet in our Solar System with surface temperatures over 460°C due to a runaway greenhouse effect."
+    position="6 7 -18" radius="1.0"
+    material="color: #E8C070; emissive: #3a2a08; emissiveIntensity: 0.8; shader: standard">
+  </a-sphere>
+
+  <!-- NEBULA -->
+  <a-sphere
+    class="clickable"
+    data-name="Orion Nebula"
+    data-desc="A diffuse nebula in the Milky Way about 1,344 light-years away. It's one of the brightest nebulae visible to the naked eye and is a stellar nursery where new stars are being born."
+    position="20 10 -40" radius="6"
+    material="color: #8A2BE2; emissive: #4B0082; emissiveIntensity: 1.2; opacity: 0.5; transparent: true; shader: flat">
+  </a-sphere>
+
+  <!-- BLACK HOLE -->
+  <a-entity position="-18 8 -45">
     <a-sphere
-      id="earth"
       class="clickable"
-      data-name="Earth"
-      data-desc="Earth is the third planet from the Sun and the only astronomical object known to harbor life. About 71% of its surface is covered with water."
-      position="4 1.2 -6"
-      radius="0.8"
-      material="src: #earthTex; color: #2E8B57"
-    ></a-sphere>
-
-    <!-- MARS -->
-    <a-sphere
-      id="mars"
+      data-name="Black Hole"
+      data-desc="A region of spacetime where gravity is so strong that nothing—not even light—can escape. Formed from the collapse of massive stars. The glowing ring is the accretion disk of superheated matter spiraling into the event horizon."
+      radius="3" material="color: #000000; shader: flat">
+    </a-sphere>
+    <a-torus
       class="clickable"
-      data-name="Mars"
-      data-desc="Mars is the fourth planet from the Sun. It is a dusty, cold, desert world with a very thin atmosphere. Evidence suggests it once had liquid water on its surface."
-      position="-4 1.8 -7"
-      radius="0.6"
-      material="color: #C1440E"
-    ></a-sphere>
-
-    <!-- JUPITER -->
-    <a-sphere
-      id="jupiter"
+      data-name="Black Hole"
+      data-desc="A region of spacetime where gravity is so strong that nothing—not even light—can escape."
+      radius="4.5" radius-tubular="0.4" rotation="75 0 0"
+      material="color: #FF4500; emissive: #FF4500; emissiveIntensity: 1.5; shader: standard">
+    </a-torus>
+    <a-torus
       class="clickable"
-      data-name="Jupiter"
-      data-desc="Jupiter is the largest planet in the Solar System. It is a gas giant with a mass more than two and a half times that of all the other planets combined."
-      position="6 0.5 -12"
-      radius="1.2"
-      material="color: #D8A47F"
-    ></a-sphere>
+      data-name="Black Hole"
+      data-desc="The accretion disk of a black hole is made of superheated matter spiraling inward at relativistic speeds."
+      radius="4.5" radius-tubular="0.3" rotation="75 0 0"
+      material="color: #FFAA00; emissive: #FFAA00; emissiveIntensity: 1.5; opacity: 0.6; transparent: true; shader: flat">
+    </a-torus>
+  </a-entity>
+</a-scene>
 
-    <!-- SATURN (with a simple ring) -->
-    <a-entity position="-6 1.0 -14">
-      <a-sphere
-        class="clickable"
-        data-name="Saturn"
-        data-desc="Saturn is the sixth planet from the Sun and the second-largest in the Solar System. It is a gas giant with a prominent ring system made mostly of ice particles."
-        radius="1.0"
-        material="color: #F4C430"
-      ></a-sphere>
-      <a-ring
-        radius-inner="1.2"
-        radius-outer="2.0"
-        rotation="-90 0 0"
-        material="color: #E0C080; opacity: 0.6; side: double"
-      ></a-ring>
-    </a-entity>
+<script>
+(function () {
+  'use strict';
 
-    <!-- NEBULA (a coloured cloud‑like sphere) -->
-    <a-sphere
-      id="nebula"
-      class="clickable"
-      data-name="Orion Nebula"
-      data-desc="The Orion Nebula is a diffuse nebula situated in the Milky Way. It is one of the brightest nebulae and is visible to the naked eye in the night sky."
-      position="2 3 -20"
-      radius="3"
-      material="color: #8A2BE2; opacity: 0.4; transparent: true; emissive: #4B0082"
-    ></a-sphere>
+  var infoOverlay, infoTitle, infoDesc, closeBtn, hint;
+  var starsAdded = false;
+  var wired = false;
 
-    <!-- BLACK HOLE (a dark sphere with a glowing ring) -->
-    <a-entity position="-3 2 -25">
-      <a-sphere
-        class="clickable"
-        data-name="Black Hole"
-        data-desc="A black hole is a region of spacetime where gravity is so strong that nothing—no particles or even electromagnetic radiation such as light—can escape from it."
-        radius="1.5"
-        material="color: #000; shader: flat"
-      ></a-sphere>
-      <a-torus
-        radius="2.2"
-        radius-tubular="0.15"
-        rotation="90 0 0"
-        material="color: #FF4500; emissive: #FF4500; opacity: 0.8"
-      ></a-torus>
-    </a-entity>
+  /* ---------- Star field ---------- */
+  function createStarField() {
+    if (starsAdded) return;
+    starsAdded = true;
+    var scene = document.querySelector('a-scene');
+    if (!scene) return;
 
-    <!-- DISTANT STARS (procedurally placed tiny spheres) -->
-    <a-entity id="starField">
-      <a-sphere position="10 10 -30" radius="0.2" material="color: #FFF; emissive: #FFF"></a-sphere>
-      <a-sphere position="-15 5 -35" radius="0.15" material="color: #FFF; emissive: #FFF"></a-sphere>
-      <a-sphere position="20 -5 -40" radius="0.25" material="color: #FFF; emissive: #FFF"></a-sphere>
-      <a-sphere position="-8 -10 -50" radius="0.1" material="color: #FFF; emissive: #FFF"></a-sphere>
-      <a-sphere position="5 15 -60" radius="0.2" material="color: #FFF; emissive: #FFF"></a-sphere>
-      <!-- Add more stars as needed... -->
-    </a-entity>
+    var container = document.createElement('a-entity');
+    container.setAttribute('id', 'starfield');
 
-  </a-scene>
+    for (var i = 0; i < 220; i++) {
+      var r = 200 + Math.random() * 400;
+      var theta = Math.random() * Math.PI * 2;
+      var phi = Math.acos(2 * Math.random() - 1);
+      var x = r * Math.sin(phi) * Math.cos(theta);
+      var y = r * Math.cos(phi);
+      var z = r * Math.sin(phi) * Math.sin(theta);
 
-  <!-- ==================== JAVASCRIPT LOGIC ==================== -->
-  <script>
-    // Wait for A-Frame to load
-    AFRAME.registerComponent('info-interaction', {
-      init: function () {
-        const scene = this.el.sceneEl;
-        const infoPanel = document.querySelector('#infoPanel');
-        const infoTitle = document.querySelector('#infoTitle');
-        const infoDesc = document.querySelector('#infoDesc');
-        const closeBtn = document.querySelector('#closeBtn');
+      var size = 0.8 + Math.random() * 2.2;
 
-        // Function to show info
-        function showInfo(name, desc) {
-          infoTitle.setAttribute('value', name);
-          infoDesc.setAttribute('value', desc);
-          infoPanel.setAttribute('visible', true);
-        }
+      var star = document.createElement('a-sphere');
+      star.setAttribute('position', x + ' ' + y + ' ' + z);
+      star.setAttribute('geometry', 'primitive: sphere; radius: ' + size + '; segmentsWidth: 6; segmentsHeight: 4');
+      star.setAttribute('material', 'color: #ffffff; shader: flat');
+      container.appendChild(star);
+    }
+    scene.appendChild(container);
+  }
 
-        // Listen for clicks on any clickable object
-        scene.addEventListener('click', function (evt) {
-          const target = evt.target;
-          if (target.classList.contains('clickable')) {
-            const name = target.dataset.name || 'Unknown';
-            const desc = target.dataset.desc || 'No description available.';
-            showInfo(name, desc);
-          }
-        });
+  /* ---------- Info panel ---------- */
+  function showInfo(name, desc) {
+    if (!infoOverlay) return;
+    infoTitle.textContent = name || 'Unknown';
+    infoDesc.textContent = desc || '';
+    infoOverlay.style.display = 'block';
+    if (hint) hint.style.opacity = '0';
+  }
 
-        // Close button hides the panel
-        closeBtn.addEventListener('click', function () {
-          infoPanel.setAttribute('visible', false);
+  function hideInfo() {
+    if (infoOverlay) infoOverlay.style.display = 'none';
+  }
+
+  /* ---------- Wire click listeners directly on every clickable object ---------- */
+  function wireObjects() {
+    if (wired) return;
+    wired = true;
+    var els = document.querySelectorAll('.clickable');
+    els.forEach(function (el) {
+      el.addEventListener('click', function () {
+        showInfo(this.dataset.name, this.dataset.desc);
+      });
+    });
+  }
+
+  /* ---------- Init ---------- */
+  function init() {
+    infoOverlay = document.getElementById('info-overlay');
+    infoTitle   = document.getElementById('info-title');
+    infoDesc    = document.getElementById('info-desc');
+    closeBtn    = document.getElementById('close-btn');
+    hint        = document.getElementById('hint');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        hideInfo();
+      });
+    }
+
+    setTimeout(function () {
+      if (hint) hint.style.opacity = '0.35';
+    }, 6000);
+
+    var scene = document.querySelector('a-scene');
+    if (scene) {
+      if (scene.hasLoaded) {
+        wireObjects();
+        createStarField();
+      } else {
+        scene.addEventListener('loaded', function () {
+          wireObjects();
+          createStarField();
         });
       }
-    });
+    }
 
-    // Register the component on the scene
-    document.addEventListener('DOMContentLoaded', function () {
-      const scene = document.querySelector('a-scene');
-      scene.setAttribute('info-interaction', '');
-    });
-  </script>
+    // Safety net: try again after 1s (in case 'loaded' fired early)
+    setTimeout(function () {
+      wireObjects();
+      createStarField();
+    }, 1000);
+
+    // Gyroscope diagnostics
+    if (typeof Gyroscope === 'undefined' && typeof DeviceOrientationEvent === 'undefined') {
+      console.warn('[Celestial VR] No device orientation API detected — touch controls only.');
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
 
 </body>
 </html>
