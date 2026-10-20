@@ -8,7 +8,7 @@
 <style>
   :root{
     --bg:#04060c; --ink:#e8ecf6; --mute:#8d98b4; --amber:#ffc26b; --line:#2a3552;
-    --glass:rgba(12,17,30,.66); --cyan:#67e8f9; --rose:#fb7185;
+    --glass:rgba(12,17,30,.72); --cyan:#67e8f9; --rose:#fb7185; --violet:#a78bfa;
   }
   *{box-sizing:border-box}
   html,body{
@@ -41,6 +41,29 @@
     text-shadow:0 1px 8px #000a; z-index:5;
   }
 
+  /* ---------- Info panel ---------- */
+  #info{
+    position:fixed;right:14px;top:calc(env(safe-area-inset-top,0px) + 54px);
+    width:min(310px,calc(100% - 28px));max-height:calc(100vh - 160px);
+    background:var(--glass);border:1px solid var(--line);border-radius:18px;
+    padding:14px 16px;overflow-y:auto;
+    backdrop-filter:blur(20px) saturate(1.4);
+    -webkit-backdrop-filter:blur(20px) saturate(1.4);
+    box-shadow:0 24px 60px -24px #000, inset 0 1px 0 #ffffff14;
+    z-index:6;display:none;font-size:13px;
+  }
+  #info.open{display:block;animation:slideIn .25s ease}
+  @keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+  #info h2{margin:0 0 2px;font-size:16px;letter-spacing:.04em;color:var(--amber)}
+  #info .sub{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
+  #info .close{position:absolute;top:10px;right:12px;background:none;border:0;color:var(--mute);font-size:18px;cursor:pointer;padding:4px}
+  #info .row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid #ffffff0a}
+  #info .row:last-child{border:0}
+  #info .k{color:var(--mute);font-size:11px;letter-spacing:.06em}
+  #info .v{color:var(--ink);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  #info .desc{margin-top:10px;font-size:12px;color:#b8c2d8;line-height:1.5}
+  #info .loading{color:var(--mute);font-size:12px;font-style:italic}
+
   /* ---------- Control bar ---------- */
   #bar{
     position:fixed;left:0;right:0;
@@ -51,7 +74,7 @@
   .panel{
     pointer-events:auto;display:flex;flex-direction:column;gap:10px;
     background:var(--glass);border:1px solid var(--line);border-radius:20px;
-    padding:12px 16px;max-width:min(720px,100%);
+    padding:12px 16px;max-width:min(780px,100%);
     backdrop-filter:blur(18px) saturate(1.3);
     -webkit-backdrop-filter:blur(18px) saturate(1.3);
     box-shadow:0 24px 60px -24px #000, inset 0 1px 0 #ffffff14;
@@ -108,14 +131,16 @@
   #veil p{margin:0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}
   #veil.gone{opacity:0;pointer-events:none}
 
-  @media (max-width:420px){
-    #hud{gap:12px;font-size:9px}
-    #hud b{font-size:11px}
-    button{padding:7px 11px;font-size:12px}
+  @media (max-width:480px){
+    #hud{gap:10px;font-size:9px}
+    #hud b{font-size:10px}
+    button{padding:7px 10px;font-size:12px}
+    #info{width:calc(100% - 20px);right:10px;top:auto;bottom:150px;max-height:40vh}
   }
   @media (prefers-reduced-motion:reduce){
     #veil{transition:none}
     button{transition:none}
+    #info.open{animation:none}
   }
 </style>
 </head>
@@ -135,6 +160,13 @@
 
 <div id="brand">SKY&nbsp;VR · SHAHDOL</div>
 
+<aside id="info" aria-live="polite">
+  <button class="close" id="info-close" aria-label="Close panel">×</button>
+  <h2 id="info-name">—</h2>
+  <div class="sub" id="info-type">—</div>
+  <div id="info-body"></div>
+</aside>
+
 <div id="bar">
   <div class="panel">
     <div class="row">
@@ -142,22 +174,23 @@
       <input id="time" type="range" min="0" max="24" step="0.01" value="19.15"
              aria-label="Time of day">
       <b class="clock" id="v-time">19:09</b>
-      <button id="b-now" title="Jump to the current date &amp; time">Now</button>
+      <button id="b-now" title="Jump to now">Now</button>
     </div>
     <div class="row">
       <button id="b-cycle" class="on" title="Animate the night">Cycle</button>
       <button id="b-drift" class="on" title="Slow camera drift">Drift</button>
-      <button id="b-grid" class="on" title="Toggle RA/Dec &amp; Alt/Az grids">Grid</button>
-      <button id="b-names" class="on" title="Toggle object labels">Names</button>
-      <button id="b-gyro" title="Look with device motion">Gyro</button>
+      <button id="b-ground" class="on" title="Show ground &amp; horizon">Ground</button>
+      <button id="b-grid" class="on" title="RA/Dec &amp; Alt/Az grids">Grid</button>
+      <button id="b-names" class="on" title="Object labels">Names</button>
+      <button id="b-gyro" title="Device motion">Gyro</button>
       <button id="b-vr" title="Split-screen stereo">VR</button>
       <button id="b-full" title="Fullscreen">Full</button>
-      <button id="b-reset" title="Reset the view">Reset</button>
+      <button id="b-reset" title="Reset view">Reset</button>
     </div>
   </div>
 </div>
 
-<div id="veil"><h1>SKY VR · SHAHDOL</h1><p>drag to look · pinch to zoom · scientific sky atlas</p></div>
+<div id="veil"><h1>SKY VR · SHAHDOL</h1><p>drag to look · tap an object for facts</p></div>
 
 <script type="importmap">
 {
@@ -191,6 +224,8 @@ const veil = document.getElementById('veil');
 const $ = id => document.getElementById(id);
 const elHdg = $('v-hdg'), elPit = $('v-pit'), elSun = $('v-sun'),
       elFps = $('v-fps'), elTime = $('v-time'), slider = $('time');
+const infoPanel = $('info'), infoName = $('info-name'),
+      infoType = $('info-type'), infoBody = $('info-body');
 
 const DEG = Math.PI / 180;
 const RAD = 180 / Math.PI;
@@ -200,24 +235,26 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
    STATE
    ============================================================ */
 const state = {
-  yaw: -1.52,        // azimuth (radians)
-  pitch: 0.08,       // altitude (radians)
-  fov: 72,           // vertical field of view (degrees)
-  hour: 19.15,       // local time
+  yaw: -1.52,
+  pitch: 0.08,
+  fov: 72,
+  hour: 19.15,
   cloud: 0.55,
   drift: true,
   cycle: true,
+  ground: true,
   grid: true,
   names: true,
   stereo: false,
   gyro: false,
-  observerDate: new Date()
+  observerDate: new Date(),
+  selected: null
 };
 
 const DEFAULT = { yaw: -1.52, pitch: 0.08, fov: 72, hour: 19.15 };
 
 /* ============================================================
-   WEBGL SKY BACKGROUND
+   WEBGL SKY + GROUND
    ============================================================ */
 if (!gl) {
   veil.innerHTML = '<h1>SKY VR</h1><p>WebGL not available</p>';
@@ -240,6 +277,7 @@ varying vec2 vUv;
 uniform vec2  uRes;
 uniform vec3  uFwd, uRight, uUp, uSun, uMoon;
 uniform float uTanHalf, uTime, uCloud;
+uniform float uGround;
 
 float hash13(vec3 p3){ p3 = fract(p3*0.1031); p3 += dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
 float hash12(vec2 p){ vec3 p3 = fract(vec3(p.xyx)*0.1031); p3 += dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
@@ -265,18 +303,45 @@ void main(){
 
   float t=clamp(dir.y,0.0,1.0);
   vec3 col=mix(hor,zen,pow(t,0.55));
-  float below=smoothstep(0.0,-0.12,dir.y);
-  col=mix(col,mix(vec3(0.020,0.026,0.042),vec3(0.10,0.11,0.14),day),below);
 
+  /* ---- GROUND ---- */
+  float groundY = -0.015;
+  if (uGround > 0.5 && dir.y < groundY) {
+    float below = smoothstep(groundY, groundY - 0.08, dir.y);
+    // earthy gradient: warm dark soil near horizon → deep charcoal at nadir
+    vec3 soilNear = vec3(0.085, 0.070, 0.055);
+    vec3 soilFar  = vec3(0.018, 0.020, 0.028);
+    vec3 gcol = mix(soilNear, soilFar, below);
+
+    // subtle terrain texture
+    vec2 gp = dir.xz / (abs(dir.y) + 0.05) * 1.8;
+    float tex = fbm(gp * 2.0) * 0.25 + fbm(gp * 7.0) * 0.10;
+    gcol += (tex - 0.12) * 0.15 * (1.0 - below*0.6);
+
+    // atmospheric haze at the horizon
+    float haze = exp(-abs(dir.y - groundY) * 28.0);
+    vec3 hazeCol = mix(vec3(0.16,0.18,0.24), horDay, day);
+    gcol = mix(gcol, hazeCol, haze * 0.70);
+
+    col = gcol;
+  } else if (uGround > 0.5) {
+    // thin haze just above horizon so ground melts into sky
+    float haze = exp(-abs(dir.y) * 40.0);
+    col = mix(col, mix(vec3(0.10,0.13,0.18), hor, day), haze * 0.35);
+  }
+
+  /* ---- horizon glow towards the sun ---- */
   vec3 flatDir=normalize(vec3(dir.x,0.,dir.z)+vec3(1e-5));
   vec3 flatSun=normalize(vec3(uSun.x,0.,uSun.z)+vec3(1e-5));
   float az=max(dot(flatDir,flatSun),0.0);
   col+=warm*pow(az,5.0)*(dusk*0.55+day*0.05)*smoothstep(-0.05,0.18,dir.y);
 
+  /* ---- sun ---- */
   float sd=max(dot(dir,uSun),0.0);
   col+=vec3(1.0,0.70,0.34)*pow(sd,8.0)*0.18;
   col+=vec3(1.0,0.92,0.78)*smoothstep(0.99940,0.99985,sd)*5.0*smoothstep(-0.08,0.02,sunEl);
 
+  /* ---- stars ---- */
   if(night>0.01 && dir.y>-0.05){
     float st=0.0;
     vec3 p1=dir*60.0; vec3 i1=floor(p1); vec3 f1=fract(p1)-0.5;
@@ -285,13 +350,28 @@ void main(){
     float h2=hash13(i2); if(h2>0.960){ float dd=length(f2); st+=smoothstep(0.24,0.0,dd); }
     st*=night*smoothstep(-0.02,0.14,dir.y);
     col+=vec3(0.84,0.90,1.0)*st*1.5;
+
+    /* ---- Milky Way band (enhanced procedural) ---- */
+    vec3 galNormal = normalize(vec3(0.42, 0.22, -0.88));
+    float band = exp(-pow(dot(dir, galNormal) * 2.2, 2.0));
+    if (band > 0.01) {
+      float mn = fbm(vec2(atan(dir.z, dir.x) * 2.4, dir.y * 5.2));
+      float dust = fbm(vec2(atan(dir.z, dir.x) * 5.5 + 11.0, dir.y * 9.0));
+      float structure = smoothstep(0.35, 0.95, mn) * (0.55 + 0.45 * smoothstep(0.3, 0.8, dust));
+      float bulge = exp(-pow(length(vec2(atan(dir.z, dir.x) + 0.3, dir.y * 1.6)) * 1.8, 2.0));
+      col += vec3(0.36, 0.40, 0.58) * band * structure * night * 0.65;
+      col += vec3(0.55, 0.48, 0.40) * band * bulge * night * 0.35;
+      col -= vec3(0.04, 0.05, 0.08) * band * smoothstep(0.6, 0.9, dust) * night * 0.5;
+    }
   }
 
+  /* ---- moon ---- */
   float md=dot(dir,uMoon);
   float moonUp=smoothstep(-0.02,0.10,uMoon.y);
   col+=vec3(0.90,0.93,1.00)*smoothstep(0.99930,0.99975,md)*2.6*moonUp;
   col+=vec3(0.45,0.55,0.85)*pow(max(md,0.),80.)*0.30*moonUp;
 
+  /* ---- clouds ---- */
   if(uCloud>0.001 && dir.y>0.004){
     vec2 cuv=dir.xz/(dir.y+0.09)*0.62 + vec2(uTime*0.0045,uTime*0.0024);
     float n1=fbm(cuv*1.35), n2=fbm(cuv*3.30+vec2(7.3,2.1));
@@ -329,7 +409,7 @@ if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgram
 gl.useProgram(prog);
 
 const U = {};
-['uRes','uFwd','uRight','uUp','uSun','uMoon','uTanHalf','uTime','uCloud']
+['uRes','uFwd','uRight','uUp','uSun','uMoon','uTanHalf','uTime','uCloud','uGround']
   .forEach(n => U[n] = gl.getUniformLocation(prog, n));
 
 const buf = gl.createBuffer();
@@ -340,10 +420,10 @@ gl.enableVertexAttribArray(aPos);
 gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
 /* ============================================================
-   CELESTIAL CATALOGS (compact, embedded)
+   CELESTIAL CATALOGS
    ============================================================ */
 
-/* Bright stars: name, RA (hours), Dec (deg, J2000), mag, spectral colour */
+/* Bright stars: name, RA(h), Dec(deg J2000), mag, spectral type */
 const STARS = [
   ['Sirius', 6.752, -16.716, -1.46, 'A1V'],
   ['Canopus', 6.399, -52.696, -0.74, 'F0II'],
@@ -432,7 +512,6 @@ const STARS = [
   ['Achird', 0.818, 57.815, 3.46, 'G0V'],
   ['Ruchbah', 1.430, 60.235, 2.68, 'A5IV'],
   ['Segin', 1.906, 63.670, 3.37, 'B3III'],
-  ['Almach', 2.065, 42.330, 2.10, 'K3II'],
   ['Mothallah', 1.884, 29.579, 3.42, 'F6IV'],
   ['Bharani', 2.997, 27.708, 3.61, 'A0V'],
   ['Electra', 3.748, 24.113, 3.70, 'B6III'],
@@ -443,13 +522,10 @@ const STARS = [
   ['Celaeno', 3.746, 24.289, 5.45, 'B7IV'],
   ['Sterope', 3.765, 24.555, 5.76, 'B6III'],
   ['Atlas', 3.819, 24.053, 3.62, 'B8III'],
-  ['Alcyone', 3.791, 24.105, 2.87, 'B7III'],
-  /* add more bright stars as needed */
 ];
 
-/* Messier & notable deep-sky objects */
+/* Deep-sky objects */
 const DSO = [
-  /* Nebulae */
   ['M42 Orion Nebula', 5.588, -5.391, 4.0, 'nebula', 85],
   ['M43 De Mairan Nebula', 5.592, -5.267, 9.0, 'nebula', 20],
   ['M8 Lagoon Nebula', 18.063, -24.386, 6.0, 'nebula', 90],
@@ -462,7 +538,6 @@ const DSO = [
   ['M97 Owl Nebula', 11.247, 55.019, 9.9, 'nebula', 3.4],
   ['M1 Crab Nebula', 5.575, 22.015, 8.4, 'nebula', 6],
   ['M78 Reflection Nebula', 5.779, 0.079, 8.3, 'nebula', 8],
-  ['M20 Trifid Nebula', 18.045, -23.033, 6.3, 'nebula', 28],
   ['NGC 7000 North America Nebula', 20.979, 44.330, 4.0, 'nebula', 120],
   ['NGC 6960 Veil Nebula', 20.760, 30.717, 7.0, 'nebula', 70],
   ['IC 434 Horsehead Nebula', 5.683, -2.458, 6.8, 'nebula', 60],
@@ -473,7 +548,6 @@ const DSO = [
   ['NGC 3132 Eight-Burst', 10.120, -40.433, 9.2, 'nebula', 1.4],
   ['NGC 6543 Cat\'s Eye', 17.977, 66.633, 8.1, 'nebula', 0.3],
   ['NGC 7293 Helix Nebula', 22.494, -20.837, 7.6, 'nebula', 16],
-  /* Galaxies */
   ['M31 Andromeda Galaxy', 0.712, 41.269, 3.4, 'galaxy', 190],
   ['M32 Andromeda Satellite', 0.711, 40.865, 8.1, 'galaxy', 8],
   ['M110 Andromeda Satellite', 0.673, 41.685, 8.9, 'galaxy', 17],
@@ -491,14 +565,11 @@ const DSO = [
   ['M66', 11.337, 12.991, 8.9, 'galaxy', 9],
   ['M84', 12.392, 12.887, 9.1, 'galaxy', 5],
   ['M86', 12.437, 12.947, 8.9, 'galaxy', 7],
-  ['M104 Sombrero Galaxy', 12.667, -11.623, 8.0, 'galaxy', 9],
   ['NGC 4565 Needle Galaxy', 12.606, 25.988, 9.6, 'galaxy', 16],
   ['NGC 891', 2.375, 42.349, 9.9, 'galaxy', 13],
   ['NGC 1300', 3.330, -19.411, 10.4, 'galaxy', 6],
   ['NGC 1365', 3.558, -36.140, 9.6, 'galaxy', 11],
   ['NGC 4038 Antennae Galaxies', 12.030, -18.868, 10.3, 'galaxy', 5],
-  ['NGC 5194 Whirlpool', 13.498, 47.195, 8.4, 'galaxy', 11],
-  /* Clusters */
   ['M45 Pleiades', 3.790, 24.117, 1.6, 'cluster', 110],
   ['M44 Beehive Cluster', 8.670, 19.983, 3.7, 'cluster', 95],
   ['M13 Hercules Cluster', 16.695, 36.467, 5.8, 'cluster', 20],
@@ -549,44 +620,56 @@ const DSO = [
   ['M30', 21.672, -23.183, 7.2, 'cluster', 12],
   ['M79', 5.408, -24.524, 7.7, 'cluster', 9],
   ['M53', 13.215, 18.167, 7.6, 'cluster', 13],
-  ['M64', 12.945, 21.683, 8.5, 'galaxy', 10],
-  ['M85', 12.422, 18.191, 9.1, 'galaxy', 7],
-  ['M88', 12.532, 14.420, 9.6, 'galaxy', 7],
-  ['M89', 12.594, 12.557, 9.8, 'galaxy', 5],
-  ['M90', 12.613, 13.163, 9.5, 'galaxy', 10],
-  ['M91', 12.590, 14.496, 10.2, 'galaxy', 6],
-  ['M95', 10.733, 11.704, 9.7, 'galaxy', 7],
-  ['M96', 10.779, 11.820, 9.2, 'galaxy', 8],
-  ['M98', 12.229, 14.900, 10.1, 'galaxy', 10],
-  ['M99', 12.313, 14.417, 9.9, 'galaxy', 5],
-  ['M100', 12.382, 15.822, 9.3, 'galaxy', 7],
-  ['M101 Pinwheel Galaxy', 14.054, 54.349, 7.9, 'galaxy', 29],
-  ['M102', 15.107, 55.763, 9.9, 'galaxy', 7],
-  ['M105', 10.797, 12.581, 9.3, 'galaxy', 5],
-  ['M108', 11.192, 55.674, 10.0, 'galaxy', 8],
-  ['M109', 11.960, 53.375, 9.8, 'galaxy', 7],
-  ['M110', 0.673, 41.685, 8.9, 'galaxy', 17],
 ];
 
-/* Black holes & candidates (RA/Dec J2000) */
+/* Black holes */
 const BLACK_HOLES = [
-  ['Sagittarius A*', 17.761, -29.008, 'blackhole'],
-  ['M87*', 12.514, 12.391, 'blackhole'],
-  ['Cygnus X-1', 19.973, 35.202, 'blackhole'],
-  ['V404 Cygni', 20.399, 33.867, 'blackhole'],
-  ['A0620-00', 6.373, -0.343, 'blackhole'],
-  ['GRO J1655-40', 16.912, -39.846, 'blackhole'],
-  ['XTE J1118+480', 11.303, 48.037, 'blackhole'],
-  ['GX 339-4', 17.005, -48.794, 'blackhole'],
-  ['4U 1543-47', 15.717, -47.667, 'blackhole'],
-  ['MAXI J1820+070', 18.349, 7.185, 'blackhole'],
+  ['Sagittarius A*', 17.761, -29.008],
+  ['M87*', 12.514, 12.391],
+  ['Cygnus X-1', 19.973, 35.202],
+  ['V404 Cygni', 20.399, 33.867],
+  ['A0620-00', 6.373, -0.343],
+  ['GRO J1655-40', 16.912, -39.846],
+  ['XTE J1118+480', 11.303, 48.037],
+  ['GX 339-4', 17.005, -48.794],
+  ['4U 1543-47', 15.717, -47.667],
+  ['MAXI J1820+070', 18.349, 7.185],
 ];
+
+/* Bright asteroids with approximate orbital elements (J2000, epoch ~2025)
+   Format: name, a(AU), e, i(deg), Ω(deg), ω(deg), M0(deg), diameter(km) */
+const ASTEROIDS = [
+  ['Ceres',   2.7675, 0.0758, 10.593, 80.393, 73.597, 77.372, 939],
+  ['Vesta',   2.3617, 0.0887, 7.140, 103.810, 151.198, 20.863, 525],
+  ['Pallas',  2.7721, 0.2306, 34.842, 173.024, 310.202, 83.162, 512],
+  ['Juno',    2.6690, 0.2562, 12.991, 169.858, 248.410, 34.893, 246],
+  ['Eros',    1.4583, 0.2227, 10.828, 304.301, 178.928, 320.215, 16.8],
+  ['Psyche',  2.9231, 0.1343, 3.096, 150.268, 228.947, 290.140, 226],
+  ['Iris',    2.3855, 0.2310, 5.523, 259.569, 145.270, 120.775, 200],
+  ['Hebe',    2.4257, 0.2020, 14.751, 138.638, 239.492, 15.607, 185],
+  ['Flora',   2.2015, 0.1560, 5.889, 110.911, 285.300, 190.343, 136],
+  ['Metis',   2.3865, 0.1228, 5.576, 68.921, 5.953, 170.246, 190],
+];
+
+/* Planet physical facts (embedded, NASA fact sheets) */
+const PLANET_FACTS = {
+  Mercury: { radius: '2,440 km', mass: '3.30 × 10²³ kg', day: '58.6 Earth days', year: '88 Earth days', moons: 0, temp: '167°C avg', desc: 'Smallest planet, extreme temperature swings, no atmosphere.' },
+  Venus:   { radius: '6,052 km', mass: '4.87 × 10²⁴ kg', day: '243 Earth days (retrograde)', year: '225 Earth days', moons: 0, temp: '464°C avg', desc: 'Hottest planet, thick CO₂ atmosphere, crushing pressure.' },
+  Earth:   { radius: '6,371 km', mass: '5.97 × 10²⁴ kg', day: '24 h', year: '365.25 days', moons: 1, temp: '15°C avg', desc: 'Our home world; liquid water oceans and a protective magnetic field.' },
+  Mars:    { radius: '3,390 km', mass: '6.42 × 10²³ kg', day: '24.6 h', year: '687 Earth days', moons: 2, temp: '−65°C avg', desc: 'The Red Planet; thin CO₂ atmosphere, polar ice caps, ancient riverbeds.' },
+  Jupiter: { radius: '69,911 km', mass: '1.90 × 10²⁷ kg', day: '9.9 h', year: '11.9 Earth years', moons: 95, temp: '−110°C cloud tops', desc: 'Largest planet; Great Red Spot storm, strong magnetic field.' },
+  Saturn:  { radius: '58,232 km', mass: '5.68 × 10²⁶ kg', day: '10.7 h', year: '29.5 Earth years', moons: 146, temp: '−140°C cloud tops', desc: 'Ringed giant; least dense planet, rings mostly water ice.' },
+  Uranus:  { radius: '25,362 km', mass: '8.68 × 10²⁵ kg', day: '17.2 h', year: '84 Earth years', moons: 27, temp: '−195°C avg', desc: 'Ice giant tipped on its side; methane gives blue-green hue.' },
+  Neptune: { radius: '24,622 km', mass: '1.02 × 10²⁶ kg', day: '16.1 h', year: '165 Earth years', moons: 14, temp: '−200°C avg', desc: 'Windiest planet; supersonic storms, deep blue methane atmosphere.' },
+  Moon:    { radius: '1,737 km', mass: '7.35 × 10²² kg', day: '27.3 Earth days', year: '27.3 Earth days (orbit)', moons: 0, temp: '−20°C avg', desc: 'Earth’s natural satellite; tidally locked, causes tides.' },
+  Sun:     { radius: '696,340 km', mass: '1.99 × 10³⁰ kg', day: '25.4 days (equator)', year: '—', moons: 0, temp: '5,500°C surface', desc: 'G-type main-sequence star; contains 99.86% of Solar System mass.' }
+};
 
 /* ============================================================
    ASTRONOMY HELPERS
    ============================================================ */
 function localSiderealTime(date) {
-  const jd = Astronomy.MakeTime(date).tt; // Julian day
+  const jd = Astronomy.MakeTime(date).tt;
   const T = (jd - 2451545.0) / 36525.0;
   let gmst = 280.46061837 + 360.98564736629 * (jd - 2451545.0)
            + 0.000387933 * T * T - (T * T * T) / 38710000.0;
@@ -595,47 +678,72 @@ function localSiderealTime(date) {
   return lst * DEG;
 }
 
-/** Convert RA/Dec (J2000) to Alt/Az for observer at date. */
 function raDecToAltAz(date, raHours, decDeg) {
   const lst = localSiderealTime(date);
-  const ha = lst - (raHours * 15) * DEG; // hour angle
+  const ha = lst - (raHours * 15) * DEG;
   const dec = decDeg * DEG;
   const lat = OBSERVER.latitude * DEG;
-
-  const sinAlt = Math.sin(dec) * Math.sin(lat)
-               + Math.cos(dec) * Math.cos(lat) * Math.cos(ha);
+  const sinAlt = Math.sin(dec) * Math.sin(lat) + Math.cos(dec) * Math.cos(lat) * Math.cos(ha);
   const alt = Math.asin(clamp(sinAlt, -1, 1));
-
-  const cosAz = (Math.sin(dec) - Math.sin(alt) * Math.sin(lat))
-              / (Math.cos(alt) * Math.cos(lat));
+  const cosAz = (Math.sin(dec) - Math.sin(alt) * Math.sin(lat)) / (Math.cos(alt) * Math.cos(lat));
   let az = Math.acos(clamp(cosAz, -1, 1));
   if (Math.sin(ha) > 0) az = 2 * Math.PI - az;
-
   return { alt, az };
 }
 
-/** Precess J2000 RA/Dec to date (simple approximation). */
-function precess(raHours, decDeg, date) {
+function altAzToVec(alt, az) {
+  return [Math.cos(alt) * Math.sin(az), Math.sin(alt), -Math.cos(alt) * Math.cos(az)];
+}
+
+/* Kepler solver for asteroid positions */
+function solveKepler(M, e) {
+  let E = M;
+  for (let i = 0; i < 8; i++) E = E - (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+  return E;
+}
+
+function asteroidHeliocentric(el, jd) {
+  const [name, a, e, iDeg, OmDeg, wDeg, M0Deg] = el;
+  const n = 0.9856076686 / Math.pow(a, 1.5); // deg/day
+  const M = ((M0Deg + n * (jd - 2451545.0)) % 360 + 360) % 360 * DEG;
+  const E = solveKepler(M, e);
+  const xv = a * (Math.cos(E) - e);
+  const yv = a * Math.sqrt(1 - e * e) * Math.sin(E);
+  const v = Math.atan2(yv, xv);
+  const r = Math.hypot(xv, yv);
+
+  const w = wDeg * DEG, Om = OmDeg * DEG, inc = iDeg * DEG;
+  const cosVw = Math.cos(v + w), sinVw = Math.sin(v + w);
+  const cosOm = Math.cos(Om), sinOm = Math.sin(Om);
+  const cosInc = Math.cos(inc), sinInc = Math.sin(inc);
+
+  const x = r * (cosOm * cosVw - sinOm * sinVw * cosInc);
+  const y = r * (sinOm * cosVw + cosOm * sinVw * cosInc);
+  const z = r * (sinVw * sinInc);
+
+  return { x, y, z };
+}
+
+function asteroidGeocentricRaDec(el, date) {
   const jd = Astronomy.MakeTime(date).tt;
-  const T = (jd - 2451545.0) / 36525.0;
-  const ra = raHours * 15 * DEG;
-  const dec = decDeg * DEG;
-  const zeta = (2306.2181 * T + 0.30188 * T * T) / 3600 * DEG;
-  const z = (2306.2181 * T + 1.09468 * T * T) / 3600 * DEG;
-  const theta = (2004.3109 * T - 0.42665 * T * T) / 3600 * DEG;
-
-  const A = Math.cos(dec) * Math.sin(ra + zeta);
-  const B = Math.cos(theta) * Math.cos(dec) * Math.cos(ra + zeta) - Math.sin(theta) * Math.sin(dec);
-  const C = Math.sin(theta) * Math.cos(dec) * Math.cos(ra + zeta) + Math.cos(theta) * Math.sin(dec);
-
-  let raOut = Math.atan2(A, B) + z;
-  raOut = ((raOut % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-  const decOut = Math.asin(clamp(C, -1, 1));
-  return { ra: raOut / DEG / 15, dec: decOut * RAD };
+  const helio = asteroidHeliocentric(el, jd);
+  // Earth heliocentric position (ecliptic J2000 approx)
+  const earth = Astronomy.HelioVector(Astronomy.Body.Earth, date);
+  const gx = helio.x - earth.x;
+  const gy = helio.y - earth.y;
+  const gz = helio.z - earth.z;
+  // rotate ecliptic → equatorial (obliquity ~23.439°)
+  const obl = 23.439 * DEG;
+  const xe = gx;
+  const ye = gy * Math.cos(obl) - gz * Math.sin(obl);
+  const ze = gy * Math.sin(obl) + gz * Math.cos(obl);
+  const ra = Math.atan2(ye, xe);
+  const dec = Math.atan2(ze, Math.hypot(xe, ye));
+  return { ra: ((ra / DEG / 15) % 24 + 24) % 24, dec: dec * RAD, dist: Math.hypot(gx, gy, gz) };
 }
 
 /* ============================================================
-   CAMERA / PROJECTION
+   CAMERA
    ============================================================ */
 const F = [0,0,0], R = [0,0,0], UP = [0,0,0];
 
@@ -649,33 +757,18 @@ function basisFromYawPitch() {
   UP[2] = R[0]*F[1] - R[1]*F[0];
 }
 
-function altAzToVec(alt, az) {
-  return [
-    Math.cos(alt) * Math.sin(az),
-    Math.sin(alt),
-    -Math.cos(alt) * Math.cos(az)
-  ];
-}
-
 function projectVec(v, W, H) {
   const z = v[0]*F[0] + v[1]*F[1] + v[2]*F[2];
   if (z <= 0.01) return null;
   const x = v[0]*R[0] + v[1]*R[1] + v[2]*R[2];
   const y = v[0]*UP[0] + v[1]*UP[1] + v[2]*UP[2];
   const f = H / (2 * Math.tan(state.fov * 0.5 * DEG));
-  return {
-    sx: W/2 + (x / z) * f,
-    sy: H/2 - (y / z) * f,
-    depth: z
-  };
+  return { sx: W/2 + (x / z) * f, sy: H/2 - (y / z) * f, depth: z };
 }
 
 /* ============================================================
-   RENDER OVERLAY (stars, planets, labels, grid)
+   OVERLAY RENDER
    ============================================================ */
-const SUN_COLOR = '#ffd27a';
-const MOON_COLOR = '#dbeafe';
-
 function drawOverlay(date) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const W = ovCanvas.width = Math.round(window.innerWidth * dpr);
@@ -686,19 +779,79 @@ function drawOverlay(date) {
   ov.clearRect(0, 0, window.innerWidth, window.innerHeight);
 
   const cw = window.innerWidth, ch = window.innerHeight;
-
   basisFromYawPitch();
 
-  /* ---------- GRID LINES ---------- */
+  if (state.ground) drawCardinals(cw, ch);
   if (state.grid) drawGrid(date, cw, ch);
+  drawStars(date, cw, ch);
+  drawPlanets(date, cw, ch);
+  drawDSO(date, cw, ch);
+  drawBlackHoles(date, cw, ch);
+  drawAsteroids(date, cw, ch);
+}
 
-  /* ---------- STARS ---------- */
+/* ---- Cardinal directions on the horizon ---- */
+function drawCardinals(W, H) {
+  const dirs = [
+    ['N', 0], ['NNE', 22.5], ['NE', 45], ['ENE', 67.5],
+    ['E', 90], ['ESE', 112.5], ['SE', 135], ['SSE', 157.5],
+    ['S', 180], ['SSW', 202.5], ['SW', 225], ['WSW', 247.5],
+    ['W', 270], ['WNW', 292.5], ['NW', 315], ['NNW', 337.5]
+  ];
+
+  ov.textAlign = 'center';
+  ov.textBaseline = 'middle';
+
+  for (const [label, azDeg] of dirs) {
+    const az = azDeg * DEG;
+    const v = altAzToVec(0, az);
+    const p = projectVec(v, W, H);
+    if (!p) continue;
+    if (p.sy < 40 || p.sy > H - 40) continue;
+
+    const isCardinal = label.length <= 2;
+    const size = isCardinal ? 16 : 9;
+    ov.font = `${isCardinal ? '600 ' : ''}${size}px "Avenir Next", system-ui, sans-serif`;
+    ov.fillStyle = isCardinal ? 'rgba(255,194,107,0.92)' : 'rgba(141,152,180,0.65)';
+    ov.fillText(label, p.sx, p.sy - (isCardinal ? 14 : 8));
+
+    if (isCardinal) {
+      // tick mark
+      ov.beginPath();
+      ov.moveTo(p.sx, p.sy - 4);
+      ov.lineTo(p.sx, p.sy + 4);
+      ov.strokeStyle = 'rgba(255,194,107,0.55)';
+      ov.lineWidth = 1.5;
+      ov.stroke();
+    }
+  }
+
+  // subtle horizon line
+  const pts = [];
+  for (let az = 0; az < 360; az += 3) {
+    const v = altAzToVec(0, az * DEG);
+    const p = projectVec(v, W, H);
+    if (p) pts.push(p);
+  }
+  if (pts.length > 1) {
+    ov.beginPath();
+    ov.moveTo(pts[0].sx, pts[0].sy);
+    for (let i = 1; i < pts.length; i++) ov.lineTo(pts[i].sx, pts[i].sy);
+    ov.strokeStyle = 'rgba(255,194,107,0.18)';
+    ov.lineWidth = 1;
+    ov.stroke();
+  }
+}
+
+/* ---- Stars ---- */
+function drawStars(date, W, H) {
   for (const [name, raH, decD, mag, spec] of STARS) {
     const { alt, az } = raDecToAltAz(date, raH, decD);
     if (alt < -0.05) continue;
     const v = altAzToVec(alt, az);
-    const p = projectVec(v, cw, ch);
+    const p = projectVec(v, W, H);
     if (!p) continue;
+
     const r = Math.max(0.6, (6.5 - mag) * 1.4);
     const color = specColor(spec);
     ov.beginPath();
@@ -711,68 +864,9 @@ function drawOverlay(date) {
 
     if (state.names && mag < 2.2) {
       ov.font = '11px "Avenir Next", system-ui, sans-serif';
-      ov.fillStyle = 'rgba(232,236,246,0.85)';
+      ov.fillStyle = 'rgba(232,236,246,0.82)';
       ov.textAlign = 'left';
       ov.fillText(name, p.sx + r + 3, p.sy - r - 2);
-    }
-  }
-
-  /* ---------- PLANETS ---------- */
-  drawPlanets(date, cw, ch);
-
-  /* ---------- DEEP-SKY OBJECTS ---------- */
-  for (const [name, raH, decD, mag, type, size] of DSO) {
-    const { alt, az } = raDecToAltAz(date, raH, decD);
-    if (alt < -0.02) continue;
-    const v = altAzToVec(alt, az);
-    const p = projectVec(v, cw, ch);
-    if (!p) continue;
-
-    const r = type === 'galaxy' ? Math.max(2, Math.log10(size + 1) * 2)
-            : type === 'nebula' ? Math.max(2, Math.log10(size + 1) * 1.8)
-            : Math.max(1.5, Math.log10(size + 1) * 1.5);
-
-    const col = type === 'nebula' ? 'rgba(103,232,249,0.55)'
-              : type === 'galaxy' ? 'rgba(251,113,133,0.50)'
-              : 'rgba(255,194,107,0.55)';
-
-    ov.beginPath();
-    ov.arc(p.sx, p.sy, r, 0, 2 * Math.PI);
-    ov.fillStyle = col;
-    ov.fill();
-    ov.strokeStyle = col.replace('0.5', '0.9');
-    ov.lineWidth = 0.6;
-    ov.stroke();
-
-    if (state.names && mag < 8.5) {
-      ov.font = '10px "Avenir Next", system-ui, sans-serif';
-      ov.fillStyle = 'rgba(232,236,246,0.70)';
-      ov.textAlign = 'left';
-      ov.fillText(name, p.sx + r + 3, p.sy - r - 1);
-    }
-  }
-
-  /* ---------- BLACK HOLES ---------- */
-  for (const [name, raH, decD] of BLACK_HOLES) {
-    const { alt, az } = raDecToAltAz(date, raH, decD);
-    if (alt < -0.02) continue;
-    const v = altAzToVec(alt, az);
-    const p = projectVec(v, cw, ch);
-    if (!p) continue;
-
-    ov.beginPath();
-    ov.arc(p.sx, p.sy, 4, 0, 2 * Math.PI);
-    ov.fillStyle = '#a78bfa';
-    ov.shadowColor = '#a78bfa';
-    ov.shadowBlur = 10;
-    ov.fill();
-    ov.shadowBlur = 0;
-
-    if (state.names) {
-      ov.font = '10px "Avenir Next", system-ui, sans-serif';
-      ov.fillStyle = 'rgba(167,139,250,0.85)';
-      ov.textAlign = 'left';
-      ov.fillText(name, p.sx + 7, p.sy - 5);
     }
   }
 }
@@ -790,26 +884,25 @@ function specColor(spec) {
   return '#cfe4ff';
 }
 
-function drawPlanets(date, W, H) {
-  const bodies = [
-    ['Sun', Astronomy.Body.Sun, '#ffd27a'],
-    ['Moon', Astronomy.Body.Moon, MOON_COLOR],
-    ['Mercury', Astronomy.Body.Mercury, '#d1d5db'],
-    ['Venus', Astronomy.Body.Venus, '#fde68a'],
-    ['Mars', Astronomy.Body.Mars, '#fca5a5'],
-    ['Jupiter', Astronomy.Body.Jupiter, '#fcd34d'],
-    ['Saturn', Astronomy.Body.Saturn, '#fde047'],
-    ['Uranus', Astronomy.Body.Uranus, '#a5f3fc'],
-    ['Neptune', Astronomy.Body.Neptune, '#93c5fd'],
-  ];
+/* ---- Planets ---- */
+const PLANET_BODIES = [
+  ['Sun', Astronomy.Body.Sun, '#ffd27a'],
+  ['Moon', Astronomy.Body.Moon, '#dbeafe'],
+  ['Mercury', Astronomy.Body.Mercury, '#d1d5db'],
+  ['Venus', Astronomy.Body.Venus, '#fde68a'],
+  ['Mars', Astronomy.Body.Mars, '#fca5a5'],
+  ['Jupiter', Astronomy.Body.Jupiter, '#fcd34d'],
+  ['Saturn', Astronomy.Body.Saturn, '#fde047'],
+  ['Uranus', Astronomy.Body.Uranus, '#a5f3fc'],
+  ['Neptune', Astronomy.Body.Neptune, '#93c5fd'],
+];
 
-  for (const [name, body, color] of bodies) {
+function drawPlanets(date, W, H) {
+  for (const [name, body, color] of PLANET_BODIES) {
     let eq;
-    try {
-      eq = Astronomy.Equator(body, date, OBSERVER, true, true);
-    } catch (_) { continue; }
-    const raH = eq.ra / 15;
-    const decD = eq.dec;
+    try { eq = Astronomy.Equator(body, date, OBSERVER, true, true); }
+    catch (_) { continue; }
+    const raH = eq.ra / 15, decD = eq.dec;
     const { alt, az } = raDecToAltAz(date, raH, decD);
     if (alt < -0.02) continue;
     const v = altAzToVec(alt, az);
@@ -834,14 +927,106 @@ function drawPlanets(date, W, H) {
   }
 }
 
+/* ---- Deep-sky objects ---- */
+function drawDSO(date, W, H) {
+  for (const [name, raH, decD, mag, type, size] of DSO) {
+    const { alt, az } = raDecToAltAz(date, raH, decD);
+    if (alt < -0.02) continue;
+    const v = altAzToVec(alt, az);
+    const p = projectVec(v, W, H);
+    if (!p) continue;
+
+    const r = type === 'galaxy' ? Math.max(2, Math.log10(size + 1) * 2)
+            : type === 'nebula' ? Math.max(2, Math.log10(size + 1) * 1.8)
+            : Math.max(1.5, Math.log10(size + 1) * 1.5);
+
+    const col = type === 'nebula' ? 'rgba(103,232,249,0.55)'
+              : type === 'galaxy' ? 'rgba(251,113,133,0.50)'
+              : 'rgba(255,194,107,0.55)';
+
+    ov.beginPath();
+    ov.arc(p.sx, p.sy, r, 0, 2 * Math.PI);
+    ov.fillStyle = col;
+    ov.fill();
+    ov.strokeStyle = col.replace('0.5', '0.9');
+    ov.lineWidth = 0.6;
+    ov.stroke();
+
+    if (state.names && mag < 8.5) {
+      ov.font = '10px "Avenir Next", system-ui, sans-serif';
+      ov.fillStyle = 'rgba(232,236,246,0.68)';
+      ov.textAlign = 'left';
+      ov.fillText(name, p.sx + r + 3, p.sy - r - 1);
+    }
+  }
+}
+
+/* ---- Black holes ---- */
+function drawBlackHoles(date, W, H) {
+  for (const [name, raH, decD] of BLACK_HOLES) {
+    const { alt, az } = raDecToAltAz(date, raH, decD);
+    if (alt < -0.02) continue;
+    const v = altAzToVec(alt, az);
+    const p = projectVec(v, W, H);
+    if (!p) continue;
+
+    ov.beginPath();
+    ov.arc(p.sx, p.sy, 4, 0, 2 * Math.PI);
+    ov.fillStyle = '#a78bfa';
+    ov.shadowColor = '#a78bfa';
+    ov.shadowBlur = 12;
+    ov.fill();
+    ov.shadowBlur = 0;
+
+    if (state.names) {
+      ov.font = '10px "Avenir Next", system-ui, sans-serif';
+      ov.fillStyle = 'rgba(167,139,250,0.85)';
+      ov.textAlign = 'left';
+      ov.fillText(name, p.sx + 7, p.sy - 5);
+    }
+  }
+}
+
+/* ---- Asteroids ---- */
+function drawAsteroids(date, W, H) {
+  for (const el of ASTEROIDS) {
+    const name = el[0];
+    let raDec;
+    try { raDec = asteroidGeocentricRaDec(el, date); }
+    catch (_) { continue; }
+    const { alt, az } = raDecToAltAz(date, raDec.ra, raDec.dec);
+    if (alt < -0.02) continue;
+    const v = altAzToVec(alt, az);
+    const p = projectVec(v, W, H);
+    if (!p) continue;
+
+    ov.beginPath();
+    ov.arc(p.sx, p.sy, 3, 0, 2 * Math.PI);
+    ov.fillStyle = '#fbbf24';
+    ov.shadowColor = '#fbbf24';
+    ov.shadowBlur = 8;
+    ov.fill();
+    ov.shadowBlur = 0;
+    ov.strokeStyle = 'rgba(251,191,36,0.6)';
+    ov.lineWidth = 0.8;
+    ov.stroke();
+
+    if (state.names) {
+      ov.font = '10px "Avenir Next", system-ui, sans-serif';
+      ov.fillStyle = 'rgba(251,191,36,0.85)';
+      ov.textAlign = 'left';
+      ov.fillText(name, p.sx + 6, p.sy - 4);
+    }
+  }
+}
+
+/* ---- RA/Dec + Alt/Az grids ---- */
 function drawGrid(date, W, H) {
-  /* RA/Dec grid: lines of constant RA (every 2h) and constant Dec (every 15°) */
   ov.lineWidth = 0.5;
   ov.strokeStyle = 'rgba(103,232,249,0.20)';
   ov.font = '9px "Avenir Next", system-ui, sans-serif';
   ov.fillStyle = 'rgba(103,232,249,0.55)';
 
-  /* RA meridians */
   for (let raH = 0; raH < 24; raH += 2) {
     const pts = [];
     for (let dec = -80; dec <= 80; dec += 4) {
@@ -857,13 +1042,11 @@ function drawGrid(date, W, H) {
       ov.stroke();
     }
     if (pts.length) {
-      const raLabel = (raH + 1) + 'h';
       const mid = pts[Math.floor(pts.length / 2)];
-      if (mid) ov.fillText(raLabel, mid.sx + 3, mid.sy - 3);
+      if (mid) ov.fillText((raH + 1) + 'h', mid.sx + 3, mid.sy - 3);
     }
   }
 
-  /* Dec parallels */
   for (let dec = -75; dec <= 75; dec += 15) {
     const pts = [];
     for (let raH = 0; raH < 24; raH += 0.5) {
@@ -884,7 +1067,6 @@ function drawGrid(date, W, H) {
     }
   }
 
-  /* Alt/Az grid (dashed, every 30° azimuth, every 30° altitude) */
   ov.setLineDash([3, 6]);
   ov.strokeStyle = 'rgba(255,194,107,0.22)';
   for (let az = 0; az < 360; az += 30) {
@@ -919,6 +1101,88 @@ function drawGrid(date, W, H) {
 }
 
 /* ============================================================
+   INFO PANEL – data fetching
+   ============================================================ */
+const INFO_CACHE = {};
+
+async function fetchPlanetFacts(name) {
+  // Use embedded facts immediately, then try a live API for extra depth
+  const base = PLANET_FACTS[name] || null;
+  if (INFO_CACHE[name]) return INFO_CACHE[name];
+
+  const facts = { ...(base || {}) };
+
+  try {
+    // Solar System API (public demo instance) – planets + star
+    const res = await fetch('https://solar-system-hackathon-backend.herokuapp.com/stellar/planets');
+    if (res.ok) {
+      const list = await res.json();
+      const hit = list.find(p =>
+        (p.englishName || '').toLowerCase() === name.toLowerCase()
+      );
+      if (hit) {
+        facts.radius = hit.meanRadius ? `${hit.meanRadius.toLocaleString()} km` : facts.radius;
+        facts.type = hit.planetType || hit.bodyType;
+      }
+    }
+  } catch (_) { /* offline / CORS – embedded data still works */ }
+
+  INFO_CACHE[name] = facts;
+  return facts;
+}
+
+function showInfo(name, type, extra = {}) {
+  state.selected = { name, type };
+  infoName.textContent = name;
+  infoType.textContent = type;
+  infoPanel.classList.add('open');
+
+  // immediately render known extras
+  const renderRows = (obj) => {
+    infoBody.innerHTML = Object.entries(obj)
+      .filter(([, v]) => v !== undefined && v !== null && v !== '')
+      .map(([k, v]) => `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`)
+      .join('') + (obj.desc ? `<div class="desc">${obj.desc}</div>` : '');
+  };
+
+  if (PLANET_FACTS[name]) {
+    renderRows({
+      'Mean radius': PLANET_FACTS[name].radius,
+      'Mass': PLANET_FACTS[name].mass,
+      'Day length': PLANET_FACTS[name].day,
+      'Orbital period': PLANET_FACTS[name].year,
+      'Moons': PLANET_FACTS[name].moons,
+      'Temperature': PLANET_FACTS[name].temp,
+      ...extra,
+      desc: PLANET_FACTS[name].desc
+    });
+
+    // async enrich
+    fetchPlanetFacts(name).then(f => {
+      if (state.selected && state.selected.name === name) {
+        renderRows({
+          'Mean radius': f.radius,
+          'Mass': f.mass || PLANET_FACTS[name].mass,
+          'Day length': PLANET_FACTS[name].day,
+          'Orbital period': PLANET_FACTS[name].year,
+          'Moons': PLANET_FACTS[name].moons,
+          'Temperature': PLANET_FACTS[name].temp,
+          ...extra,
+          desc: PLANET_FACTS[name].desc
+        });
+      }
+    });
+  } else {
+    renderRows({ ...extra });
+  }
+}
+
+$('info-close').addEventListener('click', () => {
+  infoPanel.classList.remove('open');
+  state.selected = null;
+});
+
+/* ============================================================
    WEBGL RENDER
    ============================================================ */
 let W = 0, H = 0;
@@ -938,19 +1202,14 @@ const sunV = [0,0,0], moonV = [0,0,0];
 
 function sunDirAt(date, out) {
   const eq = Astronomy.Equator(Astronomy.Body.Sun, date, OBSERVER, true, true);
-  const raH = eq.ra / 15;
-  const decD = eq.dec;
-  const { alt, az } = raDecToAltAz(date, raH, decD);
+  const { alt, az } = raDecToAltAz(date, eq.ra / 15, eq.dec);
   const v = altAzToVec(alt, az);
   out[0] = v[0]; out[1] = v[1]; out[2] = v[2];
   return out;
 }
-
 function moonDirAt(date, out) {
   const eq = Astronomy.Equator(Astronomy.Body.Moon, date, OBSERVER, true, true);
-  const raH = eq.ra / 15;
-  const decD = eq.dec;
-  const { alt, az } = raDecToAltAz(date, raH, decD);
+  const { alt, az } = raDecToAltAz(date, eq.ra / 15, eq.dec);
   const v = altAzToVec(alt, az);
   out[0] = v[0]; out[1] = v[1]; out[2] = v[2];
   return out;
@@ -959,7 +1218,6 @@ function moonDirAt(date, out) {
 function renderGL(now) {
   resize();
   basisFromYawPitch();
-
   const date = state.observerDate;
   sunDirAt(date, sunV);
   moonDirAt(date, moonV);
@@ -974,13 +1232,14 @@ function renderGL(now) {
   gl.uniform1f(U.uTanHalf, Math.tan(state.fov * 0.5 * DEG));
   gl.uniform1f(U.uTime, (now - startTime) * 0.001);
   gl.uniform1f(U.uCloud, state.cloud);
+  gl.uniform1f(U.uGround, state.ground ? 1 : 0);
 
   gl.viewport(0, 0, W, H);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
 /* ============================================================
-   TIME HANDLING
+   TIME
    ============================================================ */
 function currentDate() {
   const now = new Date();
@@ -998,6 +1257,101 @@ function updateObserverDate() {
   const mm = Math.floor((h - Math.floor(h)) * 60);
   elTime.textContent = String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
   slider.value = state.hour.toFixed(2);
+}
+
+/* ============================================================
+   PICKING (tap objects)
+   ============================================================ */
+const PICK_OBJECTS = [];
+
+function rebuildPickList(date) {
+  PICK_OBJECTS.length = 0;
+  const cw = window.innerWidth, ch = window.innerHeight;
+
+  const push = (name, type, raH, decD, color, extra) => {
+    const { alt, az } = raDecToAltAz(date, raH, decD);
+    if (alt < -0.02) return;
+    const v = altAzToVec(alt, az);
+    const p = projectVec(v, cw, ch);
+    if (!p) return;
+    PICK_OBJECTS.push({ name, type, sx: p.sx, sy: p.sy, color, extra });
+  };
+
+  for (const [name, body, color] of PLANET_BODIES) {
+    try {
+      const eq = Astronomy.Equator(body, date, OBSERVER, true, true);
+      const dist = body === Astronomy.Body.Sun ? null : eq.dist;
+      const extra = {};
+      if (dist) extra['Distance from Earth'] = dist.toFixed(3) + ' AU';
+      if (body === Astronomy.Body.Moon) {
+        const ill = Astronomy.Illumination(Astronomy.Body.Moon, date);
+        extra['Illumination'] = (ill.phase * 100).toFixed(0) + '%';
+      }
+      push(name, 'Planet', eq.ra / 15, eq.dec, color, extra);
+    } catch (_) {}
+  }
+
+  for (const [name, raH, decD, mag, type] of STARS) {
+    if (mag > 3.5) continue;
+    push(name, type, raH, decD, specColor(type), { 'Visual magnitude': mag });
+  }
+
+  for (const [name, raH, decD, mag, type, size] of DSO) {
+    if (mag > 8.5) continue;
+    push(name, type.charAt(0).toUpperCase() + type.slice(1), raH, decD,
+         type === 'nebula' ? '#67e8f9' : type === 'galaxy' ? '#fb7185' : '#ffc26b',
+         { 'Visual magnitude': mag, 'Angular size': size + '′' });
+  }
+
+  for (const [name, raH, decD] of BLACK_HOLES) {
+    push(name, 'Black hole', raH, decD, '#a78bfa', {});
+  }
+
+  for (const el of ASTEROIDS) {
+    try {
+      const rd = asteroidGeocentricRaDec(el, date);
+      push(el[0], 'Asteroid', rd.ra, rd.dec, '#fbbf24',
+           { 'Diameter': el[7] + ' km', 'Distance from Earth': rd.dist.toFixed(2) + ' AU' });
+    } catch (_) {}
+  }
+}
+
+function handlePick(clientX, clientY) {
+  let best = null, bestD = 30;
+  for (const o of PICK_OBJECTS) {
+    const d = Math.hypot(o.sx - clientX, o.sy - clientY);
+    if (d < bestD) { bestD = d; best = o; }
+  }
+  if (!best) return;
+
+  const date = state.observerDate;
+  const extra = { ...best.extra };
+
+  // enrich planets with live data
+  if (best.type === 'Planet' && PLANET_FACTS[best.name]) {
+    try {
+      const bodyMap = {
+        Sun: Astronomy.Body.Sun, Moon: Astronomy.Body.Moon,
+        Mercury: Astronomy.Body.Mercury, Venus: Astronomy.Body.Venus,
+        Mars: Astronomy.Body.Mars, Jupiter: Astronomy.Body.Jupiter,
+        Saturn: Astronomy.Body.Saturn, Uranus: Astronomy.Body.Uranus,
+        Neptune: Astronomy.Body.Neptune
+      };
+      const body = bodyMap[best.name];
+      if (body) {
+        const eq = Astronomy.Equator(body, date, OBSERVER, true, true);
+        extra['Distance from Earth'] = (eq.dist * 149597870.7).toLocaleString(undefined, {maximumFractionDigits: 0}) + ' km';
+        extra['Right ascension'] = (eq.ra / 15).toFixed(2) + ' h';
+        extra['Declination'] = eq.dec.toFixed(1) + '°';
+        if (best.name !== 'Sun') {
+          const ill = Astronomy.Illumination(body, date);
+          extra['Visual magnitude'] = ill.mag.toFixed(1);
+        }
+      }
+    } catch (_) {}
+  }
+
+  showInfo(best.name, best.type, extra);
 }
 
 /* ============================================================
@@ -1025,13 +1379,12 @@ function loop(now) {
 
   renderGL(now);
 
-  /* overlay ~12 Hz */
-  if (now - overlayTimer > 80) {
+  if (now - overlayTimer > 90) {
     overlayTimer = now;
     drawOverlay(state.observerDate);
+    rebuildPickList(state.observerDate);
   }
 
-  /* HUD */
   if (now - (loop._hud || 0) > 150) {
     loop._hud = now;
     const hdg = (Math.atan2(F[0], -F[2]) * RAD + 360) % 360;
@@ -1071,11 +1424,13 @@ glCanvas.addEventListener('pointerdown', e => {
   touched();
 });
 
+let dragMoved = false;
 glCanvas.addEventListener('pointermove', e => {
   const p = pointers.get(e.pointerId);
   if (!p || state.gyro) return;
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
   p.x = e.clientX; p.y = e.clientY;
+  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved = true;
   if (pointers.size === 1) {
     const k = (state.fov * DEG) / Math.max(1, glCanvas.clientHeight);
     state.yaw   -= dx * k;
@@ -1091,8 +1446,12 @@ glCanvas.addEventListener('pointermove', e => {
 });
 
 function endPointer(e) {
+  if (pointers.size === 1 && !dragMoved) {
+    handlePick(e.clientX, e.clientY);
+  }
   pointers.delete(e.pointerId);
   if (pointers.size < 2) pinchStart = 0;
+  if (pointers.size === 0) dragMoved = false;
 }
 glCanvas.addEventListener('pointerup', endPointer);
 glCanvas.addEventListener('pointercancel', endPointer);
@@ -1109,7 +1468,8 @@ window.addEventListener('keydown', e => {
     case 'f': case 'F': toggleFull(); break;
     case 'v': case 'V': toggleVR(); break;
     case 'r': case 'R': resetView(); break;
-    case 'g': case 'G': toggleGrid(); break;
+    case 'g': case 'G': toggleGround(); break;
+    case 'c': case 'C': toggleGrid(); break;
     case 'n': case 'N': toggleNames(); break;
     case '+': case '=': state.fov = clamp(state.fov - 4, 25, 110); break;
     case '-': case '_': state.fov = clamp(state.fov + 4, 25, 110); break;
@@ -1140,6 +1500,10 @@ function toggleFull() {
     (d.exitFullscreen || d.webkitExitFullscreen || (()=>{})).call(d);
   }
 }
+function toggleGround() {
+  state.ground = !state.ground;
+  $('b-ground').classList.toggle('on', state.ground);
+}
 function toggleGrid() {
   state.grid = !state.grid;
   $('b-grid').classList.toggle('on', state.grid);
@@ -1155,12 +1519,15 @@ function resetView() {
   state.hour = DEFAULT.hour;
   state.cycle = true;
   state.drift = true;
+  state.ground = true;
   state.grid = true;
   state.names = true;
   $('b-cycle').classList.add('on');
   $('b-drift').classList.add('on');
+  $('b-ground').classList.add('on');
   $('b-grid').classList.add('on');
   $('b-names').classList.add('on');
+  infoPanel.classList.remove('open');
   updateObserverDate();
   touched();
 }
@@ -1174,6 +1541,7 @@ $('b-drift').addEventListener('click', e => {
   e.currentTarget.classList.toggle('on', state.drift);
   touched();
 });
+$('b-ground').addEventListener('click', toggleGround);
 $('b-grid').addEventListener('click', toggleGrid);
 $('b-names').addEventListener('click', toggleNames);
 $('b-now').addEventListener('click', () => {
@@ -1183,7 +1551,7 @@ $('b-now').addEventListener('click', () => {
   $('b-cycle').classList.remove('on');
   updateObserverDate();
 });
-$('b-gyro').addEventListener('click', () => { /* optional gyro: omitted for brevity */ });
+$('b-gyro').addEventListener('click', () => { /* optional gyro stub */ });
 $('b-vr').addEventListener('click', toggleVR);
 $('b-full').addEventListener('click', toggleFull);
 $('b-reset').addEventListener('click', resetView);
