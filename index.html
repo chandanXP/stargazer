@@ -30,7 +30,6 @@
     text-shadow:0 1px 8px #000a; z-index:5;
     transition:opacity .3s;
   }
-  body.vr #hud{opacity:.55}
   #hud div{display:grid;gap:1px}
   #hud span{opacity:.6}
   #hud b{
@@ -41,9 +40,10 @@
     position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;
     font-size:11px;letter-spacing:.42em;color:#ffffff55;pointer-events:none;
     text-shadow:0 1px 8px #000a; z-index:5;
-    transition:opacity .3s;
   }
-  body.vr #brand{opacity:.35}
+  
+  /* Hide HUD & Brand in VR for clean view */
+  body.vr #hud, body.vr #brand { opacity: 0; pointer-events: none; }
 
   /* ---------- Tooltip ---------- */
   #tooltip{
@@ -54,53 +54,13 @@
     -webkit-backdrop-filter:blur(14px) saturate(1.3);
     box-shadow:0 12px 32px -12px #000, inset 0 1px 0 #ffffff12;
     display:none;transition:opacity .12s;
+    transform: translate(-50%, -100%) translateY(-10px); /* VR safe position */
   }
   #tooltip .tt-name{font-weight:600;color:var(--amber);font-size:13px;letter-spacing:.02em}
   #tooltip .tt-type{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mute);margin-bottom:4px}
   #tooltip .tt-row{display:flex;justify-content:space-between;gap:12px;font-size:11px;padding:1px 0}
   #tooltip .tt-row .k{color:var(--mute)}
   #tooltip .tt-hint{margin-top:6px;font-size:10px;color:var(--mute);font-style:italic}
-
-  /* ---------- Setup & Settings modals ---------- */
-  #setup,#settings{
-    position:fixed;inset:0;z-index:20;display:grid;place-content:center;
-    padding:16px;background:radial-gradient(circle at 50% 44%, #0b1224, #04060c 72%);
-    transition:opacity .4s ease;
-  }
-  #setup.gone,#settings.gone{opacity:0;pointer-events:none}
-  #setup .box,#settings .box{
-    width:min(440px,100%);
-    background:var(--glass);border:1px solid var(--line);border-radius:22px;
-    padding:22px 24px;
-    backdrop-filter:blur(22px) saturate(1.4);
-    -webkit-backdrop-filter:blur(22px) saturate(1.4);
-    box-shadow:0 32px 80px -32px #000, inset 0 1px 0 #ffffff14;
-  }
-  #setup h2,#settings h2{margin:0 0 2px;font-size:14px;letter-spacing:.4em;color:var(--amber);font-weight:600;text-transform:uppercase}
-  #setup p.sub,#settings p.sub{margin:0 0 18px;font-size:11px;letter-spacing:.12em;color:var(--mute);text-transform:uppercase}
-  #setup .fld,#settings .fld{display:grid;gap:4px;margin-bottom:12px}
-  #setup .fld > span,#settings .fld > span{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
-  #setup .input-row{display:flex;gap:6px}
-  #setup input[type=text],#setup input[type=number],#setup input[type=date],#setup input[type=time],
-  #settings input[type=password],#settings input[type=text]{
-    flex:1;appearance:none;background:#0a1020;color:var(--ink);
-    border:1px solid var(--line);border-radius:10px;
-    padding:9px 11px;font:inherit;font-size:13px;font-variant-numeric:tabular-nums;
-  }
-  #setup input:focus,#settings input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 2px #ffc26b33}
-  #setup .coords{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
-  #setup .coords.two{grid-template-columns:1fr 1fr}
-  #setup .coords label{display:grid;gap:4px}
-  #setup .coords label > span{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
-  #setup .actions,#settings .actions{display:flex;gap:8px;margin-top:18px;justify-content:space-between;flex-wrap:wrap}
-  #setup .actions button,#settings .actions button{flex:1;min-width:120px;padding:11px 16px;font-size:13px}
-  #setup button.primary,#settings button.primary{background:var(--amber);color:#0a0e1a;border-color:var(--amber);font-weight:600}
-  #setup button.primary:hover,#settings button.primary:hover{background:#ffd394}
-  #setup button.ghost,#settings button.ghost{background:transparent}
-  #setup .msg,#settings .msg{font-size:11px;color:var(--rose);min-height:14px;margin-top:6px}
-  #setup .msg.ok,#settings .msg.ok{color:#86efac}
-  #detect{width:44px;flex:none;padding:9px 0;text-align:center}
-  #settings .note{font-size:11px;color:var(--mute);line-height:1.5;margin-top:10px;padding:8px 10px;background:#ffffff08;border-radius:8px;border:1px solid #ffffff0a}
 
   /* ---------- Info panel ---------- */
   #info{
@@ -116,13 +76,18 @@
   }
   #info.open{display:block;animation:slideIn .25s ease}
   @keyframes slideIn{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+  
+  /* In VR, Info panel is centered and scaled down slightly */
   body.vr #info{
-    left:50%;right:auto;top:calc(env(safe-area-inset-top,0px) + 80px);
-    transform:translateX(-50%);
-    width:min(300px,80vw);
+    left:50%;right:auto;top:50%;
+    transform:translate(-50%, -50%);
+    width:min(320px, 60vw);
+    max-height: 70vh;
     animation:fadeIn .2s ease;
+    pointer-events: auto; /* Allow VR cursor to interact with it if needed */
   }
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  
   #info h2{margin:0 0 2px;font-size:16px;letter-spacing:.04em;color:var(--amber)}
   #info .sub{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);margin-bottom:10px}
   #info .close{position:absolute;top:10px;right:12px;background:none;border:0;color:var(--mute);font-size:18px;cursor:pointer;padding:4px}
@@ -132,55 +97,20 @@
   #info .v{color:var(--ink);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
   #info .desc{margin-top:10px;font-size:12px;color:#b8c2d8;line-height:1.5}
 
-  /* AI block inside info panel */
-  #ai-block{
-    margin-top:14px;padding-top:14px;border-top:1px solid #ffffff10;
-  }
-  .ai-header{
-    display:flex;align-items:center;gap:8px;margin-bottom:8px;
-  }
-  .ai-badge{
-    display:inline-block;padding:2px 7px;border-radius:6px;
-    background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;
-    font-size:9px;font-weight:700;letter-spacing:.15em;
-  }
+  /* AI block */
+  #ai-block{margin-top:14px;padding-top:14px;border-top:1px solid #ffffff10;}
+  .ai-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .ai-badge{display:inline-block;padding:2px 7px;border-radius:6px;background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff;font-size:9px;font-weight:700;letter-spacing:.15em;}
   #ai-status{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}
-  #ai-content{
-    font-size:12.5px;line-height:1.55;color:#dbe3f0;
-    min-height:32px;padding:4px 0 8px;
-  }
-  #ai-content strong{color:var(--amber);font-weight:600}
-  .ai-actions{
-    display:flex;gap:6px;align-items:center;
-    margin-top:6px;padding-top:8px;border-top:1px solid #ffffff08;
-  }
-  #btn-mic{
-    width:38px;height:38px;padding:0;flex:none;
-    display:grid;place-items:center;font-size:16px;
-    border-radius:50%;
-    background:linear-gradient(135deg,#7c3aed33,#7c3aed66);
-    border:1px solid #a78bfa88;
-    color:#e8ecf6;
-  }
-  #btn-mic.recording{
-    background:linear-gradient(135deg,#fb7185,#f43f5e);
-    border-color:#fb7185;
-    animation:pulse 1s infinite;
-  }
+  #ai-content{font-size:12.5px;line-height:1.55;color:#dbe3f0;min-height:32px;padding:4px 0 8px;}
+  .ai-actions{display:flex;gap:6px;align-items:center;margin-top:6px;padding-top:8px;border-top:1px solid #ffffff08;}
+  #btn-mic{width:38px;height:38px;padding:0;flex:none;display:grid;place-items:center;font-size:16px;border-radius:50%;background:linear-gradient(135deg,#7c3aed33,#7c3aed66);border:1px solid #a78bfa88;color:#e8ecf6;}
+  #btn-mic.recording{background:linear-gradient(135deg,#fb7185,#f43f5e);border-color:#fb7185;animation:pulse 1s infinite;}
   @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
   #btn-mic:disabled{opacity:.4;cursor:not-allowed}
-  #ai-input{
-    flex:1;appearance:none;
-    background:#0a1020;color:var(--ink);
-    border:1px solid var(--line);border-radius:10px;
-    padding:8px 11px;font:inherit;font-size:12px;
-  }
+  #ai-input{flex:1;appearance:none;background:#0a1020;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font:inherit;font-size:12px;}
   #ai-input:focus{outline:none;border-color:var(--amber)}
-  #btn-ask{
-    width:38px;height:38px;padding:0;flex:none;
-    display:grid;place-items:center;font-size:16px;
-    border-radius:50%;
-  }
+  #btn-ask{width:38px;height:38px;padding:0;flex:none;display:grid;place-items:center;font-size:16px;border-radius:50%;}
   .ai-error{color:var(--rose);font-size:11px}
   .ai-hint{color:var(--mute);font-size:10.5px;font-style:italic}
 
@@ -188,10 +118,8 @@
   #bar{
     position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
     display:flex;justify-content:center;padding:0 12px;pointer-events:none;z-index:5;
-    transition:opacity .25s;
+    transition:opacity .25s, transform .25s;
   }
-  body.vr #bar{opacity:0;pointer-events:none}
-  body.vr #bar.show{opacity:1;pointer-events:auto}
   .panel{
     pointer-events:auto;display:flex;flex-direction:column;gap:10px;
     background:var(--glass);border:1px solid var(--line);border-radius:20px;
@@ -199,10 +127,33 @@
     backdrop-filter:blur(18px) saturate(1.3);
     -webkit-backdrop-filter:blur(18px) saturate(1.3);
     box-shadow:0 24px 60px -24px #000, inset 0 1px 0 #ffffff14;
+    transition: border-color .2s;
   }
+  
+  /* VR Mode: Transform the bottom bar into a central floating menu */
+  body.vr #bar {
+    bottom: auto; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0; pointer-events: none;
+    width: min(400px, 80vw);
+  }
+  body.vr #bar.show {
+    opacity: 1; pointer-events: auto;
+  }
+  body.vr .panel {
+    border-color: var(--amber); /* highlight menu in VR */
+    background: rgba(12,17,30,.95);
+    padding: 20px;
+  }
+  /* Make buttons massive in VR for easy gaze targeting */
+  body.vr button { padding: 12px 18px; font-size: 15px; margin-bottom: 6px; }
+  body.vr .row { gap: 12px; flex-direction: column; align-items: stretch; }
+  body.vr .row .lab, body.vr .row input[type=range] { display: none; } /* Hide sliders in VR menu */
+
   .row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
   .lab{font-size:10px;letter-spacing:.18em;color:var(--mute)}
   .clock{color:var(--amber);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;min-width:46px;text-align:right}
+  
   button{
     appearance:none;-webkit-appearance:none;
     background:#0e1424d9;color:var(--ink);border:1px solid var(--line);border-radius:999px;
@@ -213,6 +164,16 @@
   button:active{transform:scale(.95)}
   button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
   button.on{background:#ffc26b1f;border-color:#ffc26b88;color:var(--amber)}
+  
+  /* VR Gaze Hover Effect */
+  button.vr-gaze {
+    background: #ffc26b44 !important;
+    border-color: var(--amber) !important;
+    color: #fff !important;
+    box-shadow: 0 0 20px #ffc26b66;
+    transform: scale(1.05);
+  }
+
   input[type=range]{
     -webkit-appearance:none;appearance:none;background:transparent;
     flex:1 1 180px;min-width:120px;height:22px;cursor:pointer;
@@ -222,19 +183,61 @@
   input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:linear-gradient(90deg,#1b2540,#3b4a72 42%,#ffc26b 78%,#2a3552)}
   input[type=range]::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:var(--amber);box-shadow:0 0 14px #ffc26b99}
 
-  /* VR-mode floating menu opener */
+  /* VR Floating Menu Button (Gaze Target) */
   #vr-menu-btn{
     position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
     left:50%;transform:translateX(-50%);
-    width:44px;height:44px;border-radius:50%;padding:0;
-    display:none;place-items:center;font-size:18px;z-index:5;
+    width:50px;height:50px;border-radius:50%;padding:0;
+    display:none;place-items:center;font-size:20px;z-index:5;
     background:var(--glass);border:1px solid var(--line);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     color:var(--mute);
   }
   body.vr #vr-menu-btn{display:grid}
 
-  /* ---------- Intro veil ---------- */
+  /* ---------- Modals ---------- */
+  #setup,#settings,#vr-calib{
+    position:fixed;inset:0;z-index:20;display:grid;place-content:center;
+    padding:16px;background:radial-gradient(circle at 50% 44%, #0b1224, #04060c 72%);
+    transition:opacity .4s ease;
+  }
+  #setup.gone,#settings.gone,#vr-calib.gone{opacity:0;pointer-events:none}
+  .box{
+    width:min(440px,100%);
+    background:var(--glass);border:1px solid var(--line);border-radius:22px;
+    padding:22px 24px;backdrop-filter:blur(22px) saturate(1.4);
+    -webkit-backdrop-filter:blur(22px) saturate(1.4);
+    box-shadow:0 32px 80px -32px #000, inset 0 1px 0 #ffffff14;
+  }
+  .box h2{margin:0 0 2px;font-size:14px;letter-spacing:.4em;color:var(--amber);font-weight:600;text-transform:uppercase}
+  .box p.sub{margin:0 0 18px;font-size:11px;letter-spacing:.12em;color:var(--mute);text-transform:uppercase}
+  .fld{display:grid;gap:4px;margin-bottom:12px}
+  .fld > span{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
+  .input-row{display:flex;gap:6px}
+  .box input[type=text],.box input[type=number],.box input[type=date],.box input[type=time],.box input[type=password]{
+    flex:1;appearance:none;background:#0a1020;color:var(--ink);
+    border:1px solid var(--line);border-radius:10px;padding:9px 11px;font:inherit;font-size:13px;font-variant-numeric:tabular-nums;
+  }
+  .box input:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 2px #ffc26b33}
+  .coords{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+  .coords.two{grid-template-columns:1fr 1fr}
+  .coords label{display:grid;gap:4px}
+  .coords label > span{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--mute)}
+  .actions{display:flex;gap:8px;margin-top:18px;justify-content:space-between;flex-wrap:wrap}
+  .actions button{flex:1;min-width:120px;padding:11px 16px;font-size:13px}
+  button.primary{background:var(--amber);color:#0a0e1a;border-color:var(--amber);font-weight:600}
+  button.primary:hover{background:#ffd394}
+  button.ghost{background:transparent}
+  .msg{font-size:11px;color:var(--rose);min-height:14px;margin-top:6px}
+  .msg.ok{color:#86efac}
+  #detect{width:44px;flex:none;padding:9px 0;text-align:center}
+  .note{font-size:11px;color:var(--mute);line-height:1.5;margin-top:10px;padding:8px 10px;background:#ffffff08;border-radius:8px;border:1px solid #ffffff0a}
+
+  /* VR Calibration Specific */
+  .calib-row { margin-bottom: 16px; }
+  .calib-row label { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink); margin-bottom: 4px; }
+  .calib-row label span { color: var(--amber); }
+
+  /* Intro veil */
   #veil{
     position:fixed;inset:0;z-index:9;display:grid;place-content:center;gap:8px;text-align:center;
     background:radial-gradient(circle at 50% 44%,#0b1224,#04060c 72%);
@@ -249,11 +252,12 @@
     #hud b{font-size:10px}
     button{padding:7px 10px;font-size:12px}
     #info{width:calc(100% - 20px);right:10px;bottom:150px;top:auto;max-height:40vh}
-    body.vr #info{top:calc(env(safe-area-inset-top,0px) + 60px);max-height:50vh}
-    #setup .coords{grid-template-columns:1fr 1fr}
+    body.vr #info{top:50%; left:50%; transform:translate(-50%,-50%); max-height:60vh;}
+    .coords{grid-template-columns:1fr 1fr}
+    body.vr .panel { width: 90vw; max-width: none; }
   }
   @media (prefers-reduced-motion:reduce){
-    #veil,#setup,#settings{transition:none}
+    #veil,#setup,#settings,#vr-calib{transition:none}
     button{transition:none}
     #info.open{animation:none}
     #btn-mic.recording{animation:none}
@@ -334,7 +338,7 @@
 <div id="settings" class="gone">
   <div class="box">
     <h2>AI Settings</h2>
-    <p class="sub">Groq · Voice</p>
+    <p class="sub">Groq API Configuration</p>
 
     <label class="fld">
       <span>Groq API Key</span>
@@ -342,8 +346,7 @@
     </label>
 
     <div class="note">
-      Your key is stored locally in this browser only. It is sent directly to
-      <code>api.groq.com</code>. Get a free key at console.groq.com.
+      Your key is stored locally in this browser only. It is sent directly to <code>api.groq.com</code>. Get a free key at console.groq.com.
     </div>
 
     <div class="msg" id="settings-msg"></div>
@@ -355,7 +358,38 @@
   </div>
 </div>
 
-<button id="vr-menu-btn" title="Show menu">☰</button>
+<!-- ================= VR CALIBRATION MODAL ================= -->
+<div id="vr-calib" class="gone">
+  <div class="box">
+    <h2>VR Calibration</h2>
+    <p class="sub">Adjust for your VR Box</p>
+
+    <div class="calib-row">
+      <label>IPD (Lens Spacing) <span id="ipd-val">0</span></label>
+      <input id="ipd-slider" type="range" min="-50" max="50" step="1" value="0">
+    </div>
+
+    <div class="calib-row">
+      <label>Vertical Offset <span id="voff-val">0</span></label>
+      <input id="voff-slider" type="range" min="-100" max="100" step="1" value="0">
+    </div>
+    
+    <div class="calib-row">
+      <label>Screen Scale (Zoom) <span id="scale-val">1.0x</span></label>
+      <input id="scale-slider" type="range" min="0.5" max="1.5" step="0.05" value="1.0">
+    </div>
+
+    <div class="note">
+      Move the sliders until the two overlapping images align perfectly in the center of your VR lenses. If the text is too small, increase the zoom.
+    </div>
+
+    <div class="actions">
+      <button id="btn-calib-close" type="button" class="primary">Done</button>
+    </div>
+  </div>
+</div>
+
+<button id="vr-menu-btn" title="Show VR Menu">☰</button>
 
 <div id="bar">
   <div class="panel">
@@ -376,6 +410,7 @@
       <button id="b-full" title="Fullscreen">Full</button>
       <button id="b-loc" title="Change location &amp; time">📍</button>
       <button id="b-ai" title="AI settings">🤖</button>
+      <button id="b-calib" title="VR Calibration">⚙️</button>
       <button id="b-reset" title="Reset view">Reset</button>
     </div>
   </div>
@@ -390,59 +425,47 @@
 <script type="module">
 import * as Astronomy from 'astronomy-engine';
 
-/* ============================================================
-   OBSERVER
-   ============================================================ */
 let OBSERVER = new Astronomy.Observer(23.2936, 81.3619, 468);
 let OBSERVER_LABEL = 'Shahdol';
 
-/* ============================================================
-   DOM
-   ============================================================ */
 const glCanvas = document.getElementById('gl');
 const ovCanvas = document.getElementById('overlay');
-const gl = glCanvas.getContext('webgl', {
-  alpha:false, antialias:false, depth:false, stencil:false,
-  premultipliedAlpha:false, powerPreference:'high-performance'
-});
+const gl = glCanvas.getContext('webgl', { alpha:false, antialias:false, depth:false, stencil:false, premultipliedAlpha:false, powerPreference:'high-performance' });
 const ov = ovCanvas.getContext('2d');
 
 const veil = document.getElementById('veil');
 const $ = id => document.getElementById(id);
-const elHdg=$('v-hdg'), elPit=$('v-pit'), elSun=$('v-sun'),
-      elFps=$('v-fps'), elTime=$('v-time'), slider=$('time'),
-      elLoc=$('v-loc');
+const elHdg=$('v-hdg'), elPit=$('v-pit'), elSun=$('v-sun'), elFps=$('v-fps'), elTime=$('v-time'), slider=$('time'), elLoc=$('v-loc');
 const infoPanel=$('info'), infoName=$('info-name'), infoType=$('info-type'), infoBody=$('info-body');
 const tooltip=$('tooltip');
 const setupModal=$('setup'), setupMsg=$('setup-msg');
 const settingsModal=$('settings'), settingsMsg=$('settings-msg');
+const vrCalibModal=$('vr-calib');
 const aiStatus=$('ai-status'), aiContent=$('ai-content');
 const btnMic=$('btn-mic'), btnAsk=$('btn-ask'), aiInput=$('ai-input');
 
 const DEG = Math.PI/180, RAD = 180/Math.PI;
 const clamp = (v,a,b) => v<a?a:v>b?b:v;
 
-/* ============================================================
-   STATE
-   ============================================================ */
+// VR Calibration State
+const vrState = {
+  ipdOffset: 0,
+  vOffset: 0,
+  scale: 1.0
+};
+
 const state = {
   yaw:-1.52, pitch:0.08, fov:72, hour:19.15, cloud:0.55,
   drift:true, cycle:true, ground:true, grid:true, names:true,
   stereo:false, gyro:false, observerDate:new Date(),
-  selected:null,
-  pointerX:0, pointerY:0, pointerActive:false,
-  hovered:null,
-  /* VR dwell */
-  hoverDwellStart:0,
-  hoverDwellTarget:null
+  selected:null, pointerX:0, pointerY:0, pointerActive:false, hovered:null,
+  hoverDwellStart:0, hoverDwellTarget:null
 };
 const DEFAULT = { yaw:-1.52, pitch:0.08, fov:72, hour:19.15 };
 
-/* ============================================================
-   WEBGL SHADER (ground + sky, night-haze fix)
-   ============================================================ */
 if(!gl){ veil.innerHTML='<h1>SKY VR</h1><p>WebGL unavailable</p>'; throw new Error('no webgl'); }
 
+// ... Shader code (Remains exactly the same) ...
 const VERT=`attribute vec2 aPos;varying vec2 vUv;void main(){vUv=aPos*0.5+0.5;gl_Position=vec4(aPos,0.,1.);}`;
 const FRAG=`
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -472,7 +495,6 @@ void main(){
   hor=mix(hor,warm,dusk*0.80);zen=mix(zen,warm*0.55,dusk*0.28);
   float t=clamp(dir.y,0.,1.);
   vec3 col=mix(hor,zen,pow(t,0.55));
-  /* DARKER night haze below ground */
   float groundY=-0.015;
   if(uGround>0.5 && dir.y<groundY){
     float below=smoothstep(groundY,groundY-0.08,dir.y);
@@ -482,13 +504,11 @@ void main(){
     float tex=fbm(gp*2.)*0.25+fbm(gp*7.)*0.10;
     gcol+=(tex-0.12)*0.15*(1.-below*0.6);
     float haze=exp(-abs(dir.y-groundY)*28.);
-    /* FIXED: night haze much darker */
     vec3 hazeCol=mix(vec3(0.020,0.028,0.045),horDay,day);
     gcol=mix(gcol,hazeCol,haze*0.72);
     col=gcol;
   } else if(uGround>0.5){
     float haze=exp(-abs(dir.y)*40.);
-    /* FIXED: night above-horizon haze darker */
     col=mix(col,mix(vec3(0.015,0.020,0.035),hor,day),haze*0.35);
   }
   vec3 flatDir=normalize(vec3(dir.x,0.,dir.z)+vec3(1e-5));
@@ -496,7 +516,6 @@ void main(){
   float az=max(dot(flatDir,flatSun),0.);
   col+=warm*pow(az,5.)*(dusk*0.55+day*0.05)*smoothstep(-0.05,0.18,dir.y);
   float sd=max(dot(dir,uSun),0.);
-  /* FIXED: sun glow only when sun is above/near horizon */
   col+=vec3(1.,0.70,0.34)*pow(sd,8.)*0.18*max(0., sunEl*8.+0.4);
   col+=vec3(1.,0.92,0.78)*smoothstep(0.99940,0.99985,sd)*5.*smoothstep(-0.08,0.02,sunEl);
   if(night>0.01 && dir.y>-0.05){
@@ -557,9 +576,7 @@ const aPos=gl.getAttribLocation(prog,'aPos');
 gl.enableVertexAttribArray(aPos);
 gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,0,0);
 
-/* ============================================================
-   CATALOGS (abridged for clarity; see earlier build for full list)
-   ============================================================ */
+// ... Catalogs and Astronomy Helpers (Remains exactly the same) ...
 const STARS = [
   ['Sirius',6.752,-16.716,-1.46,'A1V'],['Canopus',6.399,-52.696,-0.74,'F0II'],
   ['Arcturus',14.261,19.182,-0.05,'K1III'],['Vega',18.615,38.784,0.03,'A0V'],
@@ -644,9 +661,6 @@ const PLANET_FACTS = {
   Sun:{radius:'696,340 km',mass:'1.99 × 10³⁰ kg',day:'25.4 d (equator)',year:'—',moons:0,temp:'5,500°C surface',desc:'G-type main-sequence star; 99.86% of Solar System mass.'}
 };
 
-/* ============================================================
-   ASTRONOMY HELPERS (RA bug fixed: no /15)
-   ============================================================ */
 function lstRad(date){
   const jd = Astronomy.MakeTime(date).tt;
   const T = (jd-2451545)/36525;
@@ -692,9 +706,6 @@ function asteroidGeocentricRaDec(el, date){
   return { ra: ((ra/DEG/15)%24+24)%24, dec: dec*RAD, dist: Math.hypot(gx,gy,gz) };
 }
 
-/* ============================================================
-   CAMERA + GYRO
-   ============================================================ */
 const F=[0,0,0], R=[0,0,0], UP=[0,0,0];
 function basisFromYawPitch(){
   const cp=Math.cos(state.pitch), sp=Math.sin(state.pitch);
@@ -745,9 +756,6 @@ function projectVec(v, W, H){
   return { sx: W/2 + (x/z)*f, sy: H/2 - (y/z)*f, depth: z };
 }
 
-/* ============================================================
-   PICK
-   ============================================================ */
 const PICK = [];
 const PLANET_BODIES = [
   ['Sun',Astronomy.Body.Sun,'#ffd27a'],['Moon',Astronomy.Body.Moon,'#dbeafe'],
@@ -773,7 +781,6 @@ function rebuildPickList(date){
     if (!p) return;
     PICK.push({ name, type, sx: p.sx, sy: p.sy, color, extra });
   };
-  /* FIXED: eq.ra (already in hours) */
   for (const [name, body, color] of PLANET_BODIES){
     try {
       const eq = Astronomy.Equator(body, date, OBSERVER, true, true);
@@ -811,9 +818,7 @@ function rebuildPickList(date){
   }
 }
 
-/* ============================================================
-   OVERLAY
-   ============================================================ */
+// ... Overlay drawing (Remains exactly the same) ...
 function drawOverlay(date){
   const dpr = Math.min(window.devicePixelRatio||1, 2);
   const W = ovCanvas.width = Math.round(window.innerWidth * dpr);
@@ -890,7 +895,6 @@ function drawPlanets(date,W,H){
   for (const [name, body, color] of PLANET_BODIES){
     let eq;
     try { eq = Astronomy.Equator(body, date, OBSERVER, true, true); } catch(_){ continue; }
-    /* FIXED */
     const { alt, az } = raDecToAltAz(date, eq.ra, eq.dec);
     if (alt < -0.02) continue;
     const v = altAzToVec(alt, az);
@@ -1032,20 +1036,51 @@ function drawGrid(date,W,H){
   }
   ov.setLineDash([]);
 }
+
+// Retina updates for VR dwell and UI Focus
+let uiDwellStart = 0;
+let uiDwellTarget = null;
+
 function drawReticle(W,H){
   const gaze = state.gyro || state.stereo;
   const cx = gaze ? W/2 : state.pointerX;
   const cy = gaze ? H/2 : state.pointerY;
   if (!gaze && !state.pointerActive) return;
+  
   const hot = !!state.hovered;
-  ov.beginPath(); ov.arc(cx, cy, hot ? 22 : 12, 0, 2*Math.PI);
-  ov.strokeStyle = hot ? '#ffc26b' : 'rgba(232,236,246,0.45)';
-  ov.lineWidth = hot ? 2 : 1.2;
+  const uiHot = !!uiDwellTarget;
+  
+  // VR Dwell Progress Ring
+  let progress = 0;
+  if (gaze) {
+    const now = performance.now();
+    if (uiDwellTarget) {
+      progress = Math.min((now - uiDwellStart) / 1000, 1); // 1s dwell
+    } else if (state.hoverDwellTarget) {
+      progress = Math.min((now - state.hoverDwellStart) / 1500, 1); // 1.5s dwell
+    }
+  }
+
+  ov.beginPath(); 
+  ov.arc(cx, cy, (hot||uiHot) ? 22 : 12, 0, 2*Math.PI);
+  ov.strokeStyle = (hot||uiHot) ? '#ffc26b' : 'rgba(232,236,246,0.45)';
+  ov.lineWidth = (hot||uiHot) ? 2 : 1.2;
   ov.stroke();
-  ov.beginPath(); ov.arc(cx, cy, hot ? 3.5 : 2, 0, 2*Math.PI);
-  ov.fillStyle = hot ? '#ffc26b' : 'rgba(232,236,246,0.7)';
+
+  // Draw progress arc
+  if (progress > 0) {
+    ov.beginPath();
+    ov.arc(cx, cy, 22, -Math.PI/2, -Math.PI/2 + (progress * 2 * Math.PI));
+    ov.strokeStyle = '#a78bfa'; // Purple for UI, Amber for objects
+    ov.lineWidth = 3;
+    ov.stroke();
+  }
+
+  ov.beginPath(); ov.arc(cx, cy, (hot||uiHot) ? 3.5 : 2, 0, 2*Math.PI);
+  ov.fillStyle = (hot||uiHot) ? '#ffc26b' : 'rgba(232,236,246,0.7)';
   ov.fill();
-  if (!hot){
+  
+  if (!hot && !uiHot && progress === 0){
     ov.strokeStyle='rgba(232,236,246,0.35)'; ov.lineWidth=1;
     for (const ang of [0,Math.PI/2,Math.PI,3*Math.PI/2]){
       const x1=cx+Math.cos(ang)*16, y1=cy+Math.sin(ang)*16;
@@ -1054,12 +1089,13 @@ function drawReticle(W,H){
     }
   }
 }
+
 function hexToRgba(hex, a){
   const h = hex.replace('#','');
   return `rgba(${parseInt(h.substring(0,2),16)},${parseInt(h.substring(2,4),16)},${parseInt(h.substring(4,6),16)},${a})`;
 }
 function drawHoverHighlight(W,H){
-  if (!state.hovered) return;
+  if (!state.hovered || uiDwellTarget) return;
   const o = state.hovered;
   ov.beginPath(); ov.arc(o.sx, o.sy, 16, 0, 2*Math.PI);
   ov.strokeStyle=o.color; ov.lineWidth=2; ov.stroke();
@@ -1067,19 +1103,55 @@ function drawHoverHighlight(W,H){
   ov.strokeStyle=hexToRgba(o.color, 0.35); ov.lineWidth=1; ov.stroke();
 }
 
-/* ============================================================
-   HOVER + VR DWELL
-   ============================================================ */
 function updateHover(){
-  if (!PICK.length){ setHovered(null); return; }
   const gaze = state.gyro || state.stereo;
   let cx, cy, radius;
+  
   if (gaze){
-    cx = window.innerWidth/2; cy = window.innerHeight/2; radius = 80;
+    cx = window.innerWidth/2; cy = window.innerHeight/2;
+    
+    // 1. Check if gaze is on a DOM element (VR Menu Interaction)
+    const el = document.elementFromPoint(cx, cy);
+    let gazeable = null;
+    if (el) {
+      if (el.tagName === 'BUTTON' || el.closest('button')) gazeable = el.closest('button');
+      else if (el.id === 'bar' || el.id === 'vr-menu-btn') gazeable = el;
+    }
+    
+    if (gazeable) {
+      if (uiDwellTarget !== gazeable) {
+        uiDwellTarget = gazeable;
+        uiDwellStart = performance.now();
+        // clear previous button state
+        document.querySelectorAll('.vr-gaze').forEach(b => b.classList.remove('vr-gaze'));
+        gazeable.classList.add('vr-gaze');
+      } else if (performance.now() - uiDwellStart > 1000) {
+        // Trigger click
+        gazeable.click();
+        uiDwellStart = performance.now() + 99999; // prevent re-trigger
+        setTimeout(() => {
+          if (gazeable) gazeable.classList.remove('vr-gaze');
+          uiDwellTarget = null;
+        }, 300);
+      }
+      setHovered(null); // Don't focus entities while in menu
+      return;
+    } else {
+      if (uiDwellTarget) {
+        uiDwellTarget.classList.remove('vr-gaze');
+        uiDwellTarget = null;
+      }
+    }
+
+    // 2. Check entities
+    radius = 80;
   } else {
     if (!state.pointerActive){ setHovered(null); return; }
     cx = state.pointerX; cy = state.pointerY; radius = 30;
   }
+
+  if (!PICK.length){ setHovered(null); return; }
+  
   let best = null, bestD = radius;
   for (const o of PICK){
     const d = Math.hypot(o.sx-cx, o.sy-cy);
@@ -1087,19 +1159,20 @@ function updateHover(){
   }
   setHovered(best);
 
-  /* VR dwell → auto-open info after 1.5s */
+  // 3. VR Entity Dwell
   if (best && gaze){
     if (state.hoverDwellTarget !== best){
       state.hoverDwellTarget = best;
       state.hoverDwellStart = performance.now();
     } else if (performance.now() - state.hoverDwellStart > 1500 && state.selected?.name !== best.name){
       openInfoFor(best);
-      state.hoverDwellStart = performance.now() + 999999; // prevent re-open
+      state.hoverDwellStart = performance.now() + 999999;
     }
   } else {
     state.hoverDwellTarget = null;
   }
 }
+
 function setHovered(o){
   if (state.hovered === o){ if (o) positionTooltip(o); return; }
   state.hovered = o;
@@ -1121,7 +1194,7 @@ function renderTooltip(o){
     <div class="tt-type">${o.type}</div>
     <div class="tt-name">${o.name}</div>
     ${rows.map(([k,v])=>`<div class="tt-row"><span class="k">${k}</span><span>${v}</span></div>`).join('')}
-    <div class="tt-hint">${state.gyro||state.stereo ? 'Gaze dwell to open · tap for details' : 'Tap to open · ask AI'}</div>
+    <div class="tt-hint">${state.gyro||state.stereo ? 'Gaze dwell to open' : 'Tap to open · ask AI'}</div>
   `;
   tooltip.style.display = 'block';
 }
@@ -1129,8 +1202,9 @@ function positionTooltip(o){
   const gaze = state.gyro || state.stereo;
   if (gaze){
     tooltip.style.left = '50%';
-    tooltip.style.top = 'calc(env(safe-area-inset-top,0px) + 60px)';
-    tooltip.style.transform = 'translateX(-50%)';
+    tooltip.style.top = '50%';
+    // Push tooltip up in VR so it doesn't block the cursor
+    tooltip.style.transform = 'translate(-50%, -100%) translateY(-40px)';
   } else {
     let x = state.pointerX + 18;
     let y = state.pointerY + 18;
@@ -1143,9 +1217,7 @@ function positionTooltip(o){
   }
 }
 
-/* ============================================================
-   INFO PANEL
-   ============================================================ */
+// Info Panel & AI
 function showInfo(name, type, extra = {}){
   state.selected = { name, type };
   infoName.textContent = name;
@@ -1169,8 +1241,6 @@ function showInfo(name, type, extra = {}){
   } else {
     renderRows({ ...extra });
   }
-
-  /* auto-fetch AI overview */
   loadAIOverview(name, type, extra);
 }
 
@@ -1182,18 +1252,12 @@ $('info-close').addEventListener('click', () => {
 function openInfoFor(o){
   const extra = { ...o.extra };
   if (o.type === 'Planet'){
-    const bodyMap = {
-      Sun:Astronomy.Body.Sun, Moon:Astronomy.Body.Moon, Mercury:Astronomy.Body.Mercury,
-      Venus:Astronomy.Body.Venus, Mars:Astronomy.Body.Mars, Jupiter:Astronomy.Body.Jupiter,
-      Saturn:Astronomy.Body.Saturn, Uranus:Astronomy.Body.Uranus, Neptune:Astronomy.Body.Neptune
-    };
+    const bodyMap = { Sun:Astronomy.Body.Sun, Moon:Astronomy.Body.Moon, Mercury:Astronomy.Body.Mercury, Venus:Astronomy.Body.Venus, Mars:Astronomy.Body.Mars, Jupiter:Astronomy.Body.Jupiter, Saturn:Astronomy.Body.Saturn, Uranus:Astronomy.Body.Uranus, Neptune:Astronomy.Body.Neptune };
     const body = bodyMap[o.name];
     if (body){
       try {
         const eq = Astronomy.Equator(body, state.observerDate, OBSERVER, true, true);
-        if (eq.dist){
-          extra['Distance from Earth'] = (eq.dist*149597870.7).toLocaleString(undefined,{maximumFractionDigits:0}) + ' km';
-        }
+        if (eq.dist) extra['Distance from Earth'] = (eq.dist*149597870.7).toLocaleString(undefined,{maximumFractionDigits:0}) + ' km';
         extra['RA'] = eq.ra.toFixed(2) + ' h';
         extra['Dec'] = eq.dec.toFixed(1) + '°';
         if (o.name !== 'Sun' && o.name !== 'Moon'){
@@ -1207,34 +1271,23 @@ function openInfoFor(o){
 }
 
 /* ============================================================
-   GROQ AI
+   GROQ AI (Model Updated)
    ============================================================ */
 const GROQ_KEY_STORAGE = 'skyvr_groq_key';
 let groqKey = localStorage.getItem(GROQ_KEY_STORAGE) || '';
-const GROQ_MODEL = 'openai/gpt-oss-20b';
+const GROQ_MODEL = 'openai/gpt-oss-20b'; // Updated from retired llama-3.1-8b-instant
 const AI_CACHE = {};
 let aiAbort = null;
 
 async function askGroq(messages, onChunk){
-  if (!groqKey){
-    throw new Error('No Groq API key. Tap 🤖 in the toolbar to add one.');
-  }
+  if (!groqKey) throw new Error('No Groq API key. Tap 🤖 in the toolbar to add one.');
   if (aiAbort) aiAbort.abort();
   aiAbort = new AbortController();
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${groqKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages,
-      max_tokens: 300,
-      temperature: 0.65,
-      stream: !!onChunk
-    }),
+    headers: { 'Authorization': `Bearer ${groqKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: GROQ_MODEL, messages, max_tokens: 300, temperature: 0.65, stream: !!onChunk }),
     signal: aiAbort.signal
   });
 
@@ -1272,7 +1325,6 @@ async function askGroq(messages, onChunk){
 }
 
 const SYS_OVERVIEW = `You are a friendly astronomy guide in a live planetarium app used by amateur stargazers in Shahdol, India. Give a 2-3 sentence overview of the object. Include ONE specific number (distance, size, temperature, or magnitude). Never say "as an AI", never use markdown, never use bullet points. Plain prose only.`;
-
 const SYS_QA = `You are an astronomy expert answering a curious stargazer. Answer the question in 1-2 sentences, direct and factual. No markdown, no lists. Plain prose.`;
 
 async function loadAIOverview(name, type, extra){
@@ -1349,28 +1401,23 @@ async function askAboutEntity(question){
   }
 }
 
-/* ============================================================
-   SPEECH
-   ============================================================ */
+// Speech (Same as before)
 let speechRec = null;
 function initSpeech(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return null;
   const rec = new SR();
-  rec.lang = 'en-IN';
-  rec.continuous = false;
-  rec.interimResults = false;
-  rec.maxAlternatives = 1;
+  rec.lang = 'en-IN'; rec.continuous = false; rec.interimResults = false; rec.maxAlternatives = 1;
   return rec;
 }
 function startVoiceQuery(){
   if (!state.selected){
-    aiContent.innerHTML = '<span class="ai-hint">Open an object first (tap it in the sky), then tap 🎤.</span>';
+    aiContent.innerHTML = '<span class="ai-hint">Open an object first, then tap 🎤.</span>';
     return;
   }
   speechRec = speechRec || initSpeech();
   if (!speechRec){
-    aiContent.innerHTML = '<span class="ai-error">Speech recognition not supported in this browser.</span>';
+    aiContent.innerHTML = '<span class="ai-error">Speech recognition not supported.</span>';
     return;
   }
   speechRec.onresult = (e) => {
@@ -1381,17 +1428,13 @@ function startVoiceQuery(){
   };
   speechRec.onerror = (e) => {
     btnMic.classList.remove('recording');
-    if (e.error !== 'aborted'){
-      aiContent.innerHTML = `<span class="ai-error">Voice error: ${e.error}</span>`;
-    }
+    if (e.error !== 'aborted') aiContent.innerHTML = `<span class="ai-error">Voice error: ${e.error}</span>`;
   };
-  speechRec.onend = () => {
-    btnMic.classList.remove('recording');
-  };
+  speechRec.onend = () => btnMic.classList.remove('recording');
   try {
     speechRec.start();
     btnMic.classList.add('recording');
-    aiContent.innerHTML = '<span class="ai-hint">Listening… speak your question.</span>';
+    aiContent.innerHTML = '<span class="ai-hint">Listening…</span>';
     aiStatus.textContent = 'Listening';
   } catch (e){
     btnMic.classList.remove('recording');
@@ -1407,14 +1450,11 @@ btnAsk.addEventListener('click', () => {
   aiInput.value = '';
 });
 aiInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter'){
-    e.preventDefault();
-    btnAsk.click();
-  }
+  if (e.key === 'Enter'){ e.preventDefault(); btnAsk.click(); }
 });
 
 /* ============================================================
-   WEBGL RENDER
+   RENDER
    ============================================================ */
 let W = 0, H = 0;
 const MAX_DPR = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) ? 1.5 : 2;
@@ -1427,14 +1467,12 @@ function resize(){
 const sunV=[0,0,0], moonV=[0,0,0];
 function sunDirAt(date,out){
   const eq = Astronomy.Equator(Astronomy.Body.Sun, date, OBSERVER, true, true);
-  /* FIXED */
   const { alt, az } = raDecToAltAz(date, eq.ra, eq.dec);
   const v = altAzToVec(alt, az);
   out[0]=v[0]; out[1]=v[1]; out[2]=v[2]; return out;
 }
 function moonDirAt(date,out){
   const eq = Astronomy.Equator(Astronomy.Body.Moon, date, OBSERVER, true, true);
-  /* FIXED */
   const { alt, az } = raDecToAltAz(date, eq.ra, eq.dec);
   const v = altAzToVec(alt, az);
   out[0]=v[0]; out[1]=v[1]; out[2]=v[2]; return out;
@@ -1465,15 +1503,25 @@ function renderGL(now){
   gl.uniform1f(U.uGround, state.ground ? 1 : 0);
 
   if (state.stereo){
+    // Apply VR Calibration adjustments
     const half = Math.floor(W/2);
+    const shift = vrState.ipdOffset * (W/800); 
+    const leftW = half + shift;
+    const rightW = W - leftW;
+    const vY = vrState.vOffset * (H/800);
+
+    // Left Eye
     const lf = toeInF(F, R, 0.011);
-    gl.viewport(0,0,half,H);
+    gl.viewport(0, vY, leftW, H);
     gl.uniform3f(U.uFwd, lf[0], lf[1], lf[2]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    // Right Eye
     const rf = toeInF(F, R, -0.011);
-    gl.viewport(half,0,W-half,H);
+    gl.viewport(leftW, vY, rightW, H);
     gl.uniform3f(U.uFwd, rf[0], rf[1], rf[2]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+
     gl.viewport(0,0,W,H);
     gl.uniform3f(U.uFwd, F[0], F[1], F[2]);
   } else {
@@ -1483,7 +1531,7 @@ function renderGL(now){
 }
 
 /* ============================================================
-   TIME
+   TIME & GYRO
    ============================================================ */
 function buildDate(){
   const now = new Date();
@@ -1500,10 +1548,6 @@ function updateObserverDate(){
   elTime.textContent = String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0');
   slider.value = state.hour.toFixed(2);
 }
-
-/* ============================================================
-   GYRO
-   ============================================================ */
 function onOrient(e){
   if (e.alpha == null || e.beta == null || e.gamma == null) return;
   const a = e.alpha*DEG, b = e.beta*DEG, g = e.gamma*DEG;
@@ -1547,8 +1591,7 @@ async function toggleGyro(){
    INPUT
    ============================================================ */
 const pointers = new Map();
-let pinchStart = 0, dragMoved = false;
-let lastTapTime = 0;
+let pinchStart = 0, dragMoved = false, lastTapTime = 0;
 function pinchDist(){
   const pts = [...pointers.values()];
   if (pts.length < 2) return 0;
@@ -1640,10 +1683,8 @@ window.addEventListener('keydown', e => {
    LOOP
    ============================================================ */
 let last = 0, startTime = performance.now(), idleSince = startTime;
-let fpsFrames = 0, fpsAcc = 0;
-let overlayTimer = 0;
+let fpsFrames = 0, fpsAcc = 0, overlayTimer = 0;
 function touched(){ idleSince = performance.now(); }
-
 function loop(now){
   const dt = last ? Math.min((now-last)/1000, 0.1) : 0.016;
   last = now;
@@ -1679,7 +1720,7 @@ function loop(now){
 }
 
 /* ============================================================
-   BUTTONS
+   BUTTONS & MENUS
    ============================================================ */
 async function toggleVR(){
   state.stereo = !state.stereo;
@@ -1688,12 +1729,7 @@ async function toggleVR(){
   $('bar').classList.remove('show');
   if (state.stereo){
     if (state.fov > 85) state.fov = 85;
-    /* try landscape lock */
-    try {
-      if (screen.orientation && screen.orientation.lock){
-        await screen.orientation.lock('landscape').catch(()=>{});
-      }
-    } catch(_){}
+    try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(()=>{}); } catch(_){}
     infoPanel.classList.remove('open');
   } else {
     try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch(_){}
@@ -1701,6 +1737,8 @@ async function toggleVR(){
 }
 $('vr-menu-btn').addEventListener('click', () => {
   $('bar').classList.toggle('show');
+  // If menu opens, reset uiDwell so it doesn't instantly click something
+  uiDwellStart = performance.now();
 });
 function toggleFull(){
   const d = document;
@@ -1741,6 +1779,7 @@ $('b-vr').addEventListener('click', toggleVR);
 $('b-full').addEventListener('click', toggleFull);
 $('b-loc').addEventListener('click', () => openSetup());
 $('b-ai').addEventListener('click', () => openSettings());
+$('b-calib').addEventListener('click', () => vrCalibModal.classList.remove('gone'));
 $('b-reset').addEventListener('click', resetView);
 slider.addEventListener('input', () => {
   state.hour = parseFloat(slider.value) || 0;
@@ -1751,7 +1790,7 @@ window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 250));
 
 /* ============================================================
-   SETUP + SETTINGS
+   SETUP + SETTINGS + CALIBRATION MODALS
    ============================================================ */
 function openSetup(){
   $('inp-lat').value = OBSERVER.latitude.toFixed(4);
@@ -1760,8 +1799,7 @@ function openSetup(){
   $('inp-loc').value = OBSERVER_LABEL;
   const now = new Date();
   $('inp-date').value = now.toISOString().slice(0,10);
-  $('inp-time').value = String(Math.floor(state.hour)).padStart(2,'0') + ':' +
-    String(Math.floor((state.hour%1)*60)).padStart(2,'0');
+  $('inp-time').value = String(Math.floor(state.hour)).padStart(2,'0') + ':' + String(Math.floor((state.hour%1)*60)).padStart(2,'0');
   setupModal.classList.remove('gone');
 }
 function closeSetup(){ setupModal.classList.add('gone'); }
@@ -1769,12 +1807,8 @@ function commitSetup(){
   const lat = parseFloat($('inp-lat').value);
   const lon = parseFloat($('inp-lon').value);
   const alt = parseFloat($('inp-alt').value) || 0;
-  if (!isFinite(lat) || !isFinite(lon)){
-    setupMsg.textContent = 'Please enter valid latitude & longitude.';
-    setupMsg.className = 'msg'; return;
-  }
-  if (lat < -89.9 || lat > 89.9 || lon < -180 || lon > 180){
-    setupMsg.textContent = 'Coordinates out of range.';
+  if (!isFinite(lat) || !isFinite(lon) || lat < -89.9 || lat > 89.9 || lon < -180 || lon > 180){
+    setupMsg.textContent = 'Please enter valid coordinates.';
     setupMsg.className = 'msg'; return;
   }
   OBSERVER = new Astronomy.Observer(lat, lon, alt);
@@ -1807,11 +1841,9 @@ async function reverseGeocode(lat, lon){
   } catch(_){ return null; }
 }
 async function detectLocation(){
-  setupMsg.textContent = 'Requesting location…';
-  setupMsg.className = 'msg';
+  setupMsg.textContent = 'Requesting location…'; setupMsg.className = 'msg';
   if (!navigator.geolocation){
-    setupMsg.textContent = 'Geolocation not supported.';
-    setupMsg.className = 'msg'; return;
+    setupMsg.textContent = 'Geolocation not supported.'; setupMsg.className = 'msg'; return;
   }
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
@@ -1821,12 +1853,10 @@ async function detectLocation(){
       if (altitude != null) $('inp-alt').value = Math.round(altitude);
       const name = await reverseGeocode(latitude, longitude);
       if (name) $('inp-loc').value = name;
-      setupMsg.textContent = 'Location detected.';
-      setupMsg.className = 'msg ok';
+      setupMsg.textContent = 'Location detected.'; setupMsg.className = 'msg ok';
     },
     (err) => {
-      setupMsg.textContent = 'Location error: ' + err.message;
-      setupMsg.className = 'msg';
+      setupMsg.textContent = 'Location error: ' + err.message; setupMsg.className = 'msg';
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
@@ -1840,11 +1870,9 @@ async function searchAndFill(){
     $('inp-lat').value = hit.lat.toFixed(4);
     $('inp-lon').value = hit.lon.toFixed(4);
     $('inp-loc').value = hit.name;
-    setupMsg.textContent = 'Found: ' + hit.name.split(',')[0];
-    setupMsg.className = 'msg ok';
+    setupMsg.textContent = 'Found: ' + hit.name.split(',')[0]; setupMsg.className = 'msg ok';
   } else {
-    setupMsg.textContent = 'Location not found. Enter coordinates manually.';
-    setupMsg.className = 'msg';
+    setupMsg.textContent = 'Location not found. Enter coordinates manually.'; setupMsg.className = 'msg';
   }
 }
 $('btn-start').addEventListener('click', commitSetup);
@@ -1856,40 +1884,50 @@ $('btn-defaults').addEventListener('click', () => {
   const now = new Date();
   $('inp-date').value = now.toISOString().slice(0,10);
   $('inp-time').value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  setupMsg.textContent = 'Shahdol defaults loaded.';
-  setupMsg.className = 'msg ok';
+  setupMsg.textContent = 'Shahdol defaults loaded.'; setupMsg.className = 'msg ok';
 });
 $('detect').addEventListener('click', detectLocation);
 $('inp-loc').addEventListener('keydown', e => {
   if (e.key === 'Enter'){ e.preventDefault(); searchAndFill(); }
 });
 
-/* Settings modal */
+// AI Settings
 function openSettings(){
   $('inp-groq').value = groqKey;
-  settingsMsg.textContent = '';
-  settingsMsg.className = 'msg';
+  settingsMsg.textContent = ''; settingsMsg.className = 'msg';
   settingsModal.classList.remove('gone');
 }
 $('btn-save-key').addEventListener('click', () => {
   const k = $('inp-groq').value.trim();
   if (k && !k.startsWith('gsk_')) {
-    settingsMsg.textContent = 'Groq keys usually start with "gsk_". Save anyway?';
-    settingsMsg.className = 'msg';
+    settingsMsg.textContent = 'Groq keys usually start with "gsk_". Save anyway?'; settingsMsg.className = 'msg';
   }
   groqKey = k;
   localStorage.setItem(GROQ_KEY_STORAGE, groqKey);
-  settingsMsg.textContent = groqKey ? 'Saved.' : 'Cleared.';
-  settingsMsg.className = 'msg ok';
+  settingsMsg.textContent = groqKey ? 'Saved.' : 'Cleared.'; settingsMsg.className = 'msg ok';
   setTimeout(() => settingsModal.classList.add('gone'), 500);
 });
 $('btn-clear-key').addEventListener('click', () => {
   groqKey = '';
   localStorage.removeItem(GROQ_KEY_STORAGE);
   $('inp-groq').value = '';
-  settingsMsg.textContent = 'Cleared.';
-  settingsMsg.className = 'msg ok';
+  settingsMsg.textContent = 'Cleared.'; settingsMsg.className = 'msg ok';
 });
+
+// VR Calibration
+$('ipd-slider').addEventListener('input', e => {
+  vrState.ipdOffset = parseInt(e.target.value);
+  $('ipd-val').textContent = vrState.ipdOffset;
+});
+$('voff-slider').addEventListener('input', e => {
+  vrState.vOffset = parseInt(e.target.value);
+  $('voff-val').textContent = vrState.vOffset;
+});
+$('scale-slider').addEventListener('input', e => {
+  vrState.scale = parseFloat(e.target.value);
+  $('scale-val').textContent = vrState.scale.toFixed(1) + 'x';
+});
+$('btn-calib-close').addEventListener('click', () => vrCalibModal.classList.add('gone'));
 
 /* ============================================================
    BOOT
