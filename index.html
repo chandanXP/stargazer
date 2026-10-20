@@ -1,154 +1,814 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Accurate Celestial VR</title>
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-  <!-- Astronomy Engine (VSOP87 planetary theory) -->
-  <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-    #info-overlay { position: fixed; bottom: 20px; left: 16px; right: 16px; background: rgba(10,10,30,0.95); color: #fff; padding: 16px; border-radius: 12px; display: none; z-index: 10000; border: 1px solid #4af; }
-    #close-btn { float: right; background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#04060c">
+<title>Sky VR</title>
+<style>
+  :root{
+    --bg:#04060c; --ink:#e8ecf6; --mute:#8d98b4; --amber:#ffc26b; --line:#2a3552;
+    --glass:rgba(12,17,30,.66);
+  }
+  *{box-sizing:border-box}
+  html,body{
+    margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font:15px/1.45 "Avenir Next",system-ui,-apple-system,sans-serif;
+    overflow:hidden;touch-action:none;overscroll-behavior:none;
+    -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;
+  }
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:grab}
+  canvas:active{cursor:grabbing}
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);left:14px;
+    display:flex;gap:18px;pointer-events:none;
+    font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute);
+    text-shadow:0 1px 8px #000a;
+  }
+  #hud div{display:grid;gap:1px}
+  #hud span{opacity:.6}
+  #hud b{
+    color:var(--amber);font-weight:600;font-variant-numeric:tabular-nums;
+    letter-spacing:.06em;font-size:12px;
+  }
+  #brand{
+    position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;
+    font-size:11px;letter-spacing:.42em;color:#ffffff55;pointer-events:none;
+    text-shadow:0 1px 8px #000a;
+  }
+
+  /* ---------- Control bar ---------- */
+  #bar{
+    position:fixed;left:0;right:0;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+    display:flex;justify-content:center;padding:0 12px;pointer-events:none;
+  }
+  .panel{
+    pointer-events:auto;display:flex;flex-direction:column;gap:10px;
+    background:var(--glass);border:1px solid var(--line);border-radius:20px;
+    padding:12px 16px;max-width:min(660px,100%);
+    backdrop-filter:blur(18px) saturate(1.3);
+    -webkit-backdrop-filter:blur(18px) saturate(1.3);
+    box-shadow:0 24px 60px -24px #000, inset 0 1px 0 #ffffff14;
+  }
+  .row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+  .lab{font-size:10px;letter-spacing:.18em;color:var(--mute)}
+  .clock{
+    color:var(--amber);font-size:12px;font-weight:600;
+    font-variant-numeric:tabular-nums;min-width:46px;text-align:right;
+  }
+
+  button{
+    appearance:none;-webkit-appearance:none;
+    background:#0e1424d9;color:var(--ink);
+    border:1px solid var(--line);border-radius:999px;
+    padding:8px 14px;font:inherit;font-size:13px;letter-spacing:.03em;
+    cursor:pointer;
+    transition:background .18s,border-color .18s,color .18s,transform .12s;
+  }
+  button:hover{background:#161f36;border-color:#3d4b70}
+  button:active{transform:scale(.95)}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+  button.on{background:#ffc26b1f;border-color:#ffc26b88;color:var(--amber)}
+
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;background:transparent;
+    flex:1 1 180px;min-width:120px;height:22px;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:4px;border-radius:2px;
+    background:linear-gradient(90deg,#1b2540,#3b4a72 42%,#ffc26b 78%,#2a3552);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;margin-top:-6px;
+    border-radius:50%;background:var(--amber);box-shadow:0 0 14px #ffc26b99;
+  }
+  input[type=range]::-moz-range-track{
+    height:4px;border-radius:2px;
+    background:linear-gradient(90deg,#1b2540,#3b4a72 42%,#ffc26b 78%,#2a3552);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border:0;border-radius:50%;
+    background:var(--amber);box-shadow:0 0 14px #ffc26b99;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--amber);outline-offset:4px;border-radius:8px}
+
+  /* ---------- Intro veil ---------- */
+  #veil{
+    position:fixed;inset:0;z-index:9;display:grid;place-content:center;
+    gap:8px;text-align:center;
+    background:radial-gradient(circle at 50% 44%,#0b1224,#04060c 72%);
+    transition:opacity .9s ease .1s;
+  }
+  #veil h1{margin:0;font-size:13px;letter-spacing:.7em;color:var(--amber);font-weight:600}
+  #veil p{margin:0;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}
+  #veil.gone{opacity:0;pointer-events:none}
+
+  @media (max-width:420px){
+    #hud{gap:12px;font-size:9px}
+    #hud b{font-size:11px}
+    button{padding:7px 11px;font-size:12px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #veil{transition:none}
+    button{transition:none}
+  }
+</style>
 </head>
 <body>
 
-<div id="info-overlay">
-  <button id="close-btn">×</button>
-  <h2 id="info-title" style="color:#FFD700; margin:0 0 8px 0;"></h2>
-  <p id="info-desc" style="margin:0; font-size:14px; line-height:1.5;"></p>
+<canvas id="c" aria-label="Interactive sky"></canvas>
+
+<div id="hud" aria-hidden="true">
+  <div><span>HDG</span><b id="v-hdg">000°</b></div>
+  <div><span>PITCH</span><b id="v-pit">+00°</b></div>
+  <div><span>SUN</span><b id="v-sun">+00°</b></div>
+  <div><span>FPS</span><b id="v-fps">–</b></div>
 </div>
 
-<a-scene
-  device-orientation-permission-ui="enabled: true"
-  background="color: #000005"
-  cursor="rayOrigin: mouse"
-  raycaster="objects: .clickable; far: 2000">
+<div id="brand">SKY&nbsp;VR</div>
 
-  <!-- Camera Rig -->
-  <a-entity id="rig" position="0 1.6 0">
-    <a-entity id="camera" camera look-controls="magicWindowTrackingEnabled: true"></a-entity>
-  </a-entity>
+<div id="bar">
+  <div class="panel">
+    <div class="row">
+      <label class="lab" for="time">TIME</label>
+      <input id="time" type="range" min="0" max="24" step="0.01" value="19.15"
+             aria-label="Time of day">
+      <b class="clock" id="v-time">19:09</b>
+    </div>
+    <div class="row">
+      <button id="b-cycle" class="on" title="Animate the day/night cycle">Cycle</button>
+      <button id="b-drift" class="on" title="Slow automatic camera drift">Drift</button>
+      <button id="b-gyro" title="Look around using device motion">Gyro</button>
+      <button id="b-vr" title="Split-screen stereo view">VR</button>
+      <button id="b-full" title="Toggle fullscreen">Full</button>
+      <button id="b-reset" title="Reset the view">Reset</button>
+    </div>
+  </div>
+</div>
 
-  <!-- The Celestial Sphere where all objects will be placed -->
-  <a-entity id="celestialSphere"></a-entity>
-
-</a-scene>
+<div id="veil"><h1>SKY VR</h1><p>drag to look · pinch to zoom</p></div>
 
 <script>
-(function() {
+(() => {
   'use strict';
 
-  const SPHERE_RADIUS = 800; // Large enough to feel like the sky
-  const celestialSphere = document.getElementById('celestialSphere');
-  const infoOverlay = document.getElementById('info-overlay');
-  const infoTitle = document.getElementById('info-title');
-  const infoDesc = document.getElementById('info-desc');
-  document.getElementById('close-btn').onclick = () => { infoOverlay.style.display = 'none'; };
+  /* ============================================================
+     DOM
+     ============================================================ */
+  const canvas = document.getElementById('c');
+  const veil   = document.getElementById('veil');
+  const $ = id => document.getElementById(id);
+  const elHdg = $('v-hdg'), elPit = $('v-pit'), elSun = $('v-sun'),
+        elFps = $('v-fps'), elTime = $('v-time'), slider = $('time');
 
-  // -----------------------------------------------------------------
-  // 1. HELPER: Convert Right Ascension & Declination to A-Frame Position
-  // -----------------------------------------------------------------
-  function raDecToPosition(raDeg, decDeg, radius) {
-    const ra = raDeg * Math.PI / 180;
-    const dec = decDeg * Math.PI / 180;
-    // Equatorial to Cartesian (Z-forward convention)
-    const x = radius * Math.cos(dec) * Math.cos(ra);
-    const y = radius * Math.sin(dec);
-    const z = -radius * Math.cos(dec) * Math.sin(ra);
-    return `${x} ${y} ${z}`;
-  }
+  const DEG = Math.PI / 180;
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-  // -----------------------------------------------------------------
-  // 2. SAMPLE STAR CATALOG (Real Data from Hipparcos/BSC)
-  // -----------------------------------------------------------------
-  // RA (degrees), Dec (degrees), Magnitude, Name
-  // Source: Yale Bright Star Catalog / Hipparcos
-  const stars = [
-    { ra: 101.287, dec: -16.716, mag: -1.46, name: "Sirius", desc: "The brightest star in the night sky. A binary system 8.6 light-years away." },
-    { ra: 95.988, dec: -52.696, mag: -0.74, name: "Canopus", desc: "Second-brightest star, a white supergiant 310 light-years away." },
-    { ra: 210.956, dec: 19.182, mag: -0.05, name: "Arcturus", desc: "A red giant star 37 light-years away, the brightest in the northern celestial hemisphere." },
-    { ra: 279.234, dec: 38.784, mag: 0.03, name: "Vega", desc: "A blue-white star 25 light-years away, historically used as a photometric standard." },
-    { ra: 88.793, dec: 7.407, mag: 0.08, name: "Rigel", desc: "A blue supergiant in Orion, 860 light-years away." },
-    { ra: 78.634, dec: -8.202, mag: 0.13, name: "Betelgeuse", desc: "A red supergiant in Orion, expected to go supernova within 100,000 years." },
-    { ra: 24.429, dec: -57.237, mag: 0.46, name: "Achernar", desc: "A rapidly rotating blue star, the brightest in Eridanus." },
-    { ra: 68.980, dec: 16.509, mag: 0.87, name: "Aldebaran", desc: "A red giant in Taurus, the 'eye of the bull'." },
-    { ra: 247.352, dec: -26.432, mag: 1.06, name: "Antares", desc: "A red supergiant in Scorpius, often called the 'rival of Mars'." },
-    { ra: 201.298, dec: -11.161, mag: 1.25, name: "Spica", desc: "A blue giant in Virgo, actually a close binary system." }
-  ];
-
-  stars.forEach(star => {
-    const pos = raDecToPosition(star.ra, star.dec, SPHERE_RADIUS);
-    // Scale visual size by magnitude: brighter (lower mag) = larger
-    const visualRadius = 0.5 + Math.max(0, (2.0 - star.mag)) * 1.2;
-
-    const el = document.createElement('a-sphere');
-    el.setAttribute('position', pos);
-    el.setAttribute('radius', visualRadius);
-    el.setAttribute('material', 'color: #ffffff; shader: flat; emissive: #ffffff; emissiveIntensity: 0.8');
-    el.classList.add('clickable');
-    el.dataset.name = star.name;
-    el.dataset.desc = star.desc;
-    el.addEventListener('click', () => showInfo(star.name, star.desc));
-    celestialSphere.appendChild(el);
+  /* ============================================================
+     WEBGL
+     ============================================================ */
+  const gl = canvas.getContext('webgl', {
+    alpha: false, antialias: false, depth: false, stencil: false,
+    premultipliedAlpha: false, powerPreference: 'high-performance'
   });
 
-  // -----------------------------------------------------------------
-  // 3. PLANETS (Real-time positions via Astronomy Engine VSOP87)
-  // -----------------------------------------------------------------
-  const planetData = {
-    Sun:     { color: '#FFD700', desc: "The Sun, a G-type main-sequence star containing 99.86% of the Solar System's mass." },
-    Mercury: { color: '#B0B0B0', desc: "The smallest planet, with a highly eccentric orbit and extreme temperature swings." },
-    Venus:   { color: '#E8C070', desc: "The hottest planet, with a runaway greenhouse effect and surface pressure 92× Earth's." },
-    Mars:    { color: '#C1440E', desc: "The Red Planet, home to Olympus Mons, the largest volcano in the Solar System." },
-    Jupiter: { color: '#D8A47F', desc: "The largest planet, a gas giant with a mass greater than all other planets combined." },
-    Saturn:  { color: '#F4C430', desc: "A gas giant famous for its extensive ring system made of ice and rock." },
-    Uranus:  { color: '#4FD0E7', desc: "An ice giant that rotates on its side, with a unique 98° axial tilt." },
-    Neptune: { color: '#4166F5', desc: "The farthest known planet, a deep blue ice giant with the strongest winds in the Solar System." }
+  if (!gl) {
+    veil.innerHTML = '<h1>SKY VR</h1><p>WebGL is not available on this device</p>';
+    return;
+  }
+
+  const VERT = `
+    attribute vec2 aPos;
+    varying vec2 vUv;
+    void main(){
+      vUv = aPos * 0.5 + 0.5;
+      gl_Position = vec4(aPos, 0.0, 1.0);
+    }
+  `;
+
+  const FRAG = `
+  #ifdef GL_FRAGMENT_PRECISION_HIGH
+  precision highp float;
+  #else
+  precision mediump float;
+  #endif
+
+  varying vec2 vUv;
+
+  uniform vec2  uRes;
+  uniform vec3  uFwd;
+  uniform vec3  uRight;
+  uniform vec3  uUp;
+  uniform vec3  uSun;
+  uniform vec3  uMoon;
+  uniform float uTanHalf;
+  uniform float uTime;
+  uniform float uCloud;
+
+  /* ---------- noise ---------- */
+  float hash13(vec3 p3){
+    p3 = fract(p3 * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  float hash12(vec2 p){
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  float vnoise(vec2 p){
+    vec2 i = floor(p), f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    float a = hash12(i);
+    float b = hash12(i + vec2(1.0, 0.0));
+    float c = hash12(i + vec2(0.0, 1.0));
+    float d = hash12(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  }
+  float fbm(vec2 p){
+    float v = 0.0, a = 0.5;
+    mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
+    for (int i = 0; i < 5; i++){
+      v += a * vnoise(p);
+      p = m * p;
+      a *= 0.5;
+    }
+    return v;
+  }
+  float starLayer(vec3 d, float scale, float thresh, float size){
+    vec3 p  = d * scale;
+    vec3 id = floor(p);
+    vec3 f  = fract(p) - 0.5;
+    float h = hash13(id);
+    if (h < thresh) return 0.0;
+    vec3 off = vec3(hash13(id + 7.1), hash13(id + 13.7), hash13(id + 23.3)) - 0.5;
+    float dd = length(f - off * 0.30);
+    float s  = smoothstep(size, 0.0, dd);
+    float tw = 0.65 + 0.35 * sin(uTime * 2.2 + h * 210.0);
+    return s * s * tw;
+  }
+
+  void main(){
+    float aspect = uRes.x / uRes.y;
+    vec2  ndc = vUv * 2.0 - 1.0;
+    vec3  dir = normalize(uFwd
+                        + uRight * (ndc.x * uTanHalf * aspect)
+                        + uUp    * (ndc.y * uTanHalf));
+
+    /* ---------- light state ---------- */
+    float sunEl = uSun.y;
+    float day   = smoothstep(-0.10,  0.25, sunEl);
+    float dusk  = smoothstep(-0.42, -0.05, sunEl) * (1.0 - smoothstep(-0.02, 0.30, sunEl));
+    float night = smoothstep( 0.08, -0.14, sunEl);
+
+    /* ---------- gradient ---------- */
+    vec3 zenDay   = vec3(0.13, 0.33, 0.72);
+    vec3 zenNight = vec3(0.012, 0.020, 0.055);
+    vec3 horDay   = vec3(0.68, 0.81, 0.95);
+    vec3 horNight = vec3(0.030, 0.045, 0.100);
+    vec3 warm     = vec3(1.00, 0.45, 0.14);
+
+    vec3 zen = mix(zenNight, zenDay, day);
+    vec3 hor = mix(horNight, horDay, day);
+    hor = mix(hor, warm,       dusk * 0.80);
+    zen = mix(zen, warm * 0.55, dusk * 0.28);
+
+    float t   = clamp(dir.y, 0.0, 1.0);
+    vec3  col = mix(hor, zen, pow(t, 0.55));
+
+    /* below the horizon */
+    float below = smoothstep(0.0, -0.12, dir.y);
+    col = mix(col, mix(vec3(0.020, 0.026, 0.042), vec3(0.10, 0.11, 0.14), day), below);
+
+    /* horizon glow towards the sun */
+    vec3  flatDir = normalize(vec3(dir.x, 0.0, dir.z) + vec3(1e-5));
+    vec3  flatSun = normalize(vec3(uSun.x, 0.0, uSun.z) + vec3(1e-5));
+    float az = max(dot(flatDir, flatSun), 0.0);
+    col += warm * pow(az, 5.0) * (dusk * 0.55 + day * 0.05) * smoothstep(-0.05, 0.18, dir.y);
+
+    /* ---------- sun ---------- */
+    float sd = max(dot(dir, uSun), 0.0);
+    col += vec3(1.0, 0.70, 0.34) * pow(sd, 8.0) * 0.18;
+    col += vec3(1.0, 0.92, 0.78) * smoothstep(0.99940, 0.99985, sd)
+         * 5.0 * smoothstep(-0.08, 0.02, sunEl);
+
+    /* ---------- stars ---------- */
+    if (night > 0.01 && dir.y > -0.05){
+      float st = 0.0;
+      st += starLayer(dir,  60.0, 0.982, 0.30) * 2.4;
+      st += starLayer(dir, 140.0, 0.960, 0.24);
+      st += starLayer(dir, 300.0, 0.974, 0.18) * 0.55;
+      st *= night * smoothstep(-0.02, 0.14, dir.y);
+      col += vec3(0.84, 0.90, 1.0) * st * 1.5;
+
+      /* faint galactic band */
+      float band = exp(-pow(dot(dir, normalize(vec3(0.42, 0.22, -0.88))) * 2.5, 2.0));
+      if (band > 0.01){
+        float mn = fbm(vec2(atan(dir.z, dir.x) * 1.8, dir.y * 3.6));
+        col += vec3(0.36, 0.40, 0.58) * band * smoothstep(0.42, 0.95, mn) * night * 0.55;
+      }
+    }
+
+    /* ---------- moon ---------- */
+    float md     = dot(dir, uMoon);
+    float moonUp = smoothstep(-0.02, 0.10, uMoon.y);
+    col += vec3(0.90, 0.93, 1.00) * smoothstep(0.99930, 0.99975, md) * 2.6 * moonUp;
+    col += vec3(0.45, 0.55, 0.85) * pow(max(md, 0.0), 80.0) * 0.30 * moonUp;
+
+    /* ---------- clouds ---------- */
+    if (uCloud > 0.001 && dir.y > 0.004){
+      vec2 cuv = dir.xz / (dir.y + 0.09) * 0.62;
+      cuv += vec2(uTime * 0.0045, uTime * 0.0024);
+
+      float n1 = fbm(cuv * 1.35);
+      float n2 = fbm(cuv * 3.30 + vec2(7.3, 2.1));
+      float d  = n1 * 0.72 + n2 * 0.34;
+
+      float cov = smoothstep(0.60 - uCloud * 0.20, 0.94 - uCloud * 0.18, d);
+      cov *= smoothstep(0.0, 0.18, dir.y);
+
+      if (cov > 0.001){
+        vec3 cn  = normalize(vec3(dir.x, 0.42, dir.z));
+        vec3 sn  = normalize(vec3(uSun.x, 0.75, uSun.z));
+        float lit = dot(cn, sn) * 0.5 + 0.5;
+
+        vec3 cl = mix(vec3(0.22, 0.26, 0.38), vec3(1.0, 0.96, 0.90), lit);
+        cl = mix(cl * 0.30, cl, day * 0.85 + dusk * 0.45);
+        cl = mix(cl, vec3(1.0, 0.52, 0.24), dusk * 0.55 * lit);
+        cl += vec3(1.0, 0.86, 0.62) * pow(sd, 24.0) * 0.9;
+
+        col = mix(col, cl, cov * 0.92);
+      }
+    }
+
+    /* ---------- grade ---------- */
+    vec2 q = vUv - 0.5;
+    col *= 1.0 - dot(q, q) * 0.30;
+    col += (hash12(gl_FragCoord.xy + fract(uTime) * 61.0) - 0.5) * 0.006;
+
+    gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+  }
+  `;
+
+  function makeShader(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(s));
+      throw new Error('Shader compile failed');
+    }
+    return s;
+  }
+
+  const prog = gl.createProgram();
+  gl.attachShader(prog, makeShader(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, makeShader(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error(gl.getProgramInfoLog(prog));
+    throw new Error('Program link failed');
+  }
+  gl.useProgram(prog);
+
+  const U = {};
+  ['uRes', 'uFwd', 'uRight', 'uUp', 'uSun', 'uMoon', 'uTanHalf', 'uTime', 'uCloud']
+    .forEach(n => { U[n] = gl.getUniformLocation(prog, n); });
+
+  /* fullscreen triangle */
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(prog, 'aPos');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  /* ============================================================
+     STATE
+     ============================================================ */
+  const state = {
+    yaw: -1.52,
+    pitch: 0.08,
+    fov: 76,
+    hour: 19.15,
+    cloud: 0.55,
+    drift: true,
+    cycle: true,
+    stereo: false,
+    gyro: false
   };
 
-  const now = new Date();
+  const DEFAULT = { yaw: -1.52, pitch: 0.08, fov: 76, hour: 19.15 };
 
-  for (const [name, data] of Object.entries(planetData)) {
-    try {
-      // Get geocentric position vector
-      let vec;
-      if (name === 'Sun') {
-        vec = Astronomy.GeoVector(Astronomy.Body.Sun, now, true);
-      } else {
-        vec = Astronomy.GeoVector(Astronomy.Body[name], now, true);
-      }
-      // Convert to equatorial RA/Dec
-      const equ = Astronomy.EquatorFromVector(vec);
-      const pos = raDecToPosition(equ.ra * 15, equ.dec, SPHERE_RADIUS); // RA is in hours, convert to degrees
+  /* ============================================================
+     MATH HELPERS
+     ============================================================ */
+  const F = [0, 0, 0], R = [0, 0, 0], UP = [0, 0, 0];
+  const EYE = [0, 0, 0];
+  const sunV = [0, 0, 0], moonV = [0, 0, 0];
 
-      const el = document.createElement('a-sphere');
-      el.setAttribute('position', pos);
-      // Planets are brighter than stars; give them a slightly larger radius
-      el.setAttribute('radius', name === 'Sun' ? 12 : (name === 'Jupiter' ? 6 : 4));
-      el.setAttribute('material', `color: ${data.color}; emissive: ${data.color}; emissiveIntensity: 1.2; shader: standard`);
-      el.classList.add('clickable');
-      el.dataset.name = name;
-      el.dataset.desc = data.desc;
-      el.addEventListener('click', () => showInfo(name, data.desc));
-      celestialSphere.appendChild(el);
-    } catch (e) {
-      console.warn(`Could not compute position for ${name}:`, e);
+  /* Sun path: rises in +X at 06:00, sets in −X at 18:00, tilted arc. */
+  function sunDirAt(hour, out) {
+    const a = (hour - 6) / 12 * Math.PI;
+    const x = Math.cos(a);
+    const y = Math.sin(a) * 0.92;
+    const z = -0.34 * Math.sin(a);
+    const L = Math.hypot(x, y, z) || 1;
+    out[0] = x / L; out[1] = y / L; out[2] = z / L;
+    return out;
+  }
+
+  function basisFromYawPitch() {
+    const cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+    const cy = Math.cos(state.yaw),   sy = Math.sin(state.yaw);
+    F[0] = sy * cp; F[1] = sp; F[2] = -cy * cp;
+    R[0] = cy;      R[1] = 0;  R[2] = sy;
+    UP[0] = R[1] * F[2] - R[2] * F[1];
+    UP[1] = R[2] * F[0] - R[0] * F[2];
+    UP[2] = R[0] * F[1] - R[1] * F[0];
+  }
+
+  function toeIn(out, f, r, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    out[0] = f[0] * c + r[0] * s;
+    out[1] = f[1] * c + r[1] * s;
+    out[2] = f[2] * c + r[2] * s;
+    const L = Math.hypot(out[0], out[1], out[2]) || 1;
+    out[0] /= L; out[1] /= L; out[2] /= L;
+  }
+
+  /* ============================================================
+     DEVICE ORIENTATION
+     ============================================================ */
+  let gyroQ = null;
+
+  function qmul(a, b) {
+    return {
+      x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+      y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+      z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+      w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z
+    };
+  }
+
+  function qRot(q, vx, vy, vz, out) {
+    const ix =  q.w * vx + q.y * vz - q.z * vy;
+    const iy =  q.w * vy + q.z * vx - q.x * vz;
+    const iz =  q.w * vz + q.x * vy - q.y * vx;
+    const iw = -q.x * vx - q.y * vy - q.z * vz;
+    out[0] = ix * q.w + iw * -q.x + iy * -q.z - iz * -q.y;
+    out[1] = iy * q.w + iw * -q.y + iz * -q.x - ix * -q.z;
+    out[2] = iz * q.w + iw * -q.z + ix * -q.y - iy * -q.x;
+  }
+
+  function eulerYXZ(x, y, z) {
+    const c1 = Math.cos(x / 2), c2 = Math.cos(y / 2), c3 = Math.cos(z / 2);
+    const s1 = Math.sin(x / 2), s2 = Math.sin(y / 2), s3 = Math.sin(z / 2);
+    return {
+      x: s1 * c2 * c3 + c1 * s2 * s3,
+      y: c1 * s2 * c3 - s1 * c2 * s3,
+      z: c1 * c2 * s3 - s1 * s2 * c3,
+      w: c1 * c2 * c3 + s1 * s2 * s3
+    };
+  }
+
+  function onOrient(e) {
+    if (e.alpha == null || e.beta == null || e.gamma == null) return;
+    const a = e.alpha * DEG, b = e.beta * DEG, g = e.gamma * DEG;
+    const screenAngle =
+      (screen.orientation && typeof screen.orientation.angle === 'number'
+        ? screen.orientation.angle
+        : (window.orientation || 0)) * DEG;
+
+    let q = eulerYXZ(b, a, -g);
+    /* camera looks down −Z: rotate −90° about X, then compensate screen rotation */
+    q = qmul(q, { x: -Math.SQRT1_2, y: 0, z: 0, w: Math.SQRT1_2 });
+    q = qmul(q, { x: 0, y: 0, z: Math.sin(-screenAngle / 2), w: Math.cos(-screenAngle / 2) });
+    gyroQ = q;
+
+    if (state.gyro) {
+      qRot(gyroQ, 0, 0, -1, F);
+      qRot(gyroQ, 1, 0,  0, R);
+      qRot(gyroQ, 0, 1,  0, UP);
     }
   }
 
-  // -----------------------------------------------------------------
-  // 4. UI
-  // -----------------------------------------------------------------
-  function showInfo(name, desc) {
-    infoTitle.textContent = name;
-    infoDesc.textContent = desc;
-    infoOverlay.style.display = 'block';
+  async function toggleGyro() {
+    if (state.gyro) {
+      state.gyro = false;
+      window.removeEventListener('deviceorientation', onOrient, true);
+      $('b-gyro').classList.remove('on');
+      return;
+    }
+
+    try {
+      const DOE = window.DeviceOrientationEvent;
+      if (DOE && typeof DOE.requestPermission === 'function') {
+        const res = await DOE.requestPermission();
+        if (res !== 'granted') return;
+      }
+    } catch (_) { /* ignore */ }
+
+    if (!('DeviceOrientationEvent' in window)) return;
+
+    window.addEventListener('deviceorientation', onOrient, true);
+    state.gyro = true;
+    $('b-gyro').classList.add('on');
+
+    /* bail out if no usable sensor data arrives */
+    setTimeout(() => {
+      if (state.gyro && !gyroQ) {
+        state.gyro = false;
+        window.removeEventListener('deviceorientation', onOrient, true);
+        $('b-gyro').classList.remove('on');
+      }
+    }, 1500);
   }
 
+  /* ============================================================
+     SIZING
+     ============================================================ */
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  const MAX_DPR = isMobile ? 1.5 : 2;
+  let W = 0, H = 0;
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (w !== W || h !== H) {
+      W = w; H = h;
+      canvas.width = W; canvas.height = H;
+    }
+  }
+
+  /* ============================================================
+     RENDER
+     ============================================================ */
+  function drawEye(vx, vy, vw, vh, fwd) {
+    gl.viewport(vx, vy, vw, vh);
+    gl.uniform2f(U.uRes, vw, vh);
+    gl.uniform3f(U.uFwd,   fwd[0], fwd[1], fwd[2]);
+    gl.uniform3f(U.uRight, R[0], R[1], R[2]);
+    gl.uniform3f(U.uUp,    UP[0], UP[1], UP[2]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  let startTime = 0;
+  let hudTimer = 0;
+
+  function render(now) {
+    resize();
+
+    if (state.gyro && gyroQ) {
+      qRot(gyroQ, 0, 0, -1, F);
+      qRot(gyroQ, 1, 0,  0, R);
+      qRot(gyroQ, 0, 1,  0, UP);
+    } else {
+      basisFromYawPitch();
+    }
+
+    sunDirAt(state.hour, sunV);
+    sunDirAt((state.hour + 12.4) % 24, moonV);
+
+    gl.useProgram(prog);
+    gl.uniform3f(U.uSun,  sunV[0],  sunV[1],  sunV[2]);
+    gl.uniform3f(U.uMoon, moonV[0], moonV[1], moonV[2]);
+    gl.uniform1f(U.uTanHalf, Math.tan(state.fov * 0.5 * DEG));
+    gl.uniform1f(U.uTime, (now - startTime) * 0.001);
+    gl.uniform1f(U.uCloud, state.cloud);
+
+    if (state.stereo) {
+      const half = Math.floor(W / 2);
+      toeIn(EYE, F, R,  0.011);           // left eye converges slightly right
+      drawEye(0, 0, half, H, EYE);
+      toeIn(EYE, F, R, -0.011);           // right eye converges slightly left
+      drawEye(half, 0, W - half, H, EYE);
+    } else {
+      drawEye(0, 0, W, H, F);
+    }
+
+    /* HUD (≈10 Hz) */
+    if (now - hudTimer > 100) {
+      hudTimer = now;
+      const hdg = (Math.atan2(F[0], -F[2]) / DEG + 360) % 360;
+      const pit = Math.asin(clamp(F[1], -1, 1)) / DEG;
+      const el  = Math.asin(clamp(sunV[1], -1, 1)) / DEG;
+      elHdg.textContent = String(Math.round(hdg)).padStart(3, '0') + '°';
+      elPit.textContent = (pit >= 0 ? '+' : '−') + String(Math.abs(Math.round(pit))).padStart(2, '0') + '°';
+      elSun.textContent = (el >= 0 ? '+' : '−') + String(Math.abs(Math.round(el))).padStart(2, '0') + '°';
+    }
+  }
+
+  /* ============================================================
+     MAIN LOOP
+     ============================================================ */
+  let last = 0;
+  let idleSince = 0;
+  let fpsFrames = 0, fpsAcc = 0;
+
+  function touched() { idleSince = performance.now(); }
+
+  function loop(now) {
+    const dt = last ? Math.min((now - last) / 1000, 0.1) : 0.016;
+    last = now;
+
+    /* day cycle */
+    if (state.cycle) {
+      state.hour = (state.hour + dt * 0.55) % 24;
+      syncTimeUI();
+    }
+
+    /* idle drift */
+    if (state.drift && !state.gyro && now - idleSince > 1800) {
+      state.yaw += dt * 0.05;
+    }
+
+    render(now);
+
+    /* fps */
+    fpsFrames++; fpsAcc += dt;
+    if (fpsAcc >= 0.5) {
+      elFps.textContent = String(Math.round(fpsFrames / fpsAcc));
+      fpsFrames = 0; fpsAcc = 0;
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  /* ============================================================
+     TIME UI
+     ============================================================ */
+  function fmtHour(h) {
+    const hh = Math.floor(h) % 24;
+    const mm = Math.floor((h - Math.floor(h)) * 60);
+    return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+  }
+
+  function syncTimeUI() {
+    slider.value = state.hour.toFixed(2);
+    elTime.textContent = fmtHour(state.hour);
+  }
+
+  slider.addEventListener('input', () => {
+    state.hour = parseFloat(slider.value) || 0;
+    state.cycle = false;
+    $('b-cycle').classList.remove('on');
+    elTime.textContent = fmtHour(state.hour);
+  });
+
+  /* ============================================================
+     POINTER INPUT
+     ============================================================ */
+  const pointers = new Map();
+  let pinchStart = 0;
+
+  function pinchDist() {
+    const pts = [...pointers.values()];
+    if (pts.length < 2) return 0;
+    return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+  }
+
+  canvas.addEventListener('pointerdown', e => {
+    if (state.gyro) return;
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) pinchStart = pinchDist();
+    touched();
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    const p = pointers.get(e.pointerId);
+    if (!p || state.gyro) return;
+
+    const dx = e.clientX - p.x;
+    const dy = e.clientY - p.y;
+    p.x = e.clientX;
+    p.y = e.clientY;
+
+    if (pointers.size === 1) {
+      /* dragging the sky: grab-and-pull */
+      const k = (state.fov * DEG) / Math.max(1, canvas.clientHeight);
+      state.yaw   -= dx * k;
+      state.pitch  = clamp(state.pitch + dy * k, -1.55, 1.55);
+    } else if (pointers.size === 2) {
+      const d = pinchDist();
+      if (pinchStart > 0 && d > 0) {
+        state.fov = clamp(state.fov * (pinchStart / d), 30, 105);
+        pinchStart = d;
+      }
+    }
+    touched();
+  });
+
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchStart = 0;
+  }
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+  /* keyboard */
+  window.addEventListener('keydown', e => {
+    const step = 0.06;
+    let handled = true;
+    switch (e.key) {
+      case 'ArrowLeft':  state.yaw -= step; break;
+      case 'ArrowRight': state.yaw += step; break;
+      case 'ArrowUp':    state.pitch = Math.min(1.55, state.pitch + step); break;
+      case 'ArrowDown':  state.pitch = Math.max(-1.55, state.pitch - step); break;
+      case 'f': case 'F': toggleFull(); break;
+      case 'v': case 'V': toggleVR(); break;
+      case 'r': case 'R': resetView(); break;
+      case '+': case '=': state.fov = clamp(state.fov - 4, 30, 105); break;
+      case '-': case '_': state.fov = clamp(state.fov + 4, 30, 105); break;
+      default: handled = false;
+    }
+    if (handled) { e.preventDefault(); touched(); }
+  });
+
+  /* wheel = zoom */
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    state.fov = clamp(state.fov + Math.sign(e.deltaY) * 3, 30, 105);
+    touched();
+  }, { passive: false });
+
+  /* ============================================================
+     BUTTONS
+     ============================================================ */
+  function toggleVR() {
+    state.stereo = !state.stereo;
+    $('b-vr').classList.toggle('on', state.stereo);
+    if (state.stereo && state.fov > 85) state.fov = 85;
+  }
+
+  function toggleFull() {
+    const d = document;
+    if (!d.fullscreenElement && !d.webkitFullscreenElement) {
+      const el = d.documentElement;
+      const fn = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (fn) fn.call(el);
+    } else {
+      const fn = d.exitFullscreen || d.webkitExitFullscreen;
+      if (fn) fn.call(d);
+    }
+  }
+
+  function resetView() {
+    state.yaw = DEFAULT.yaw;
+    state.pitch = DEFAULT.pitch;
+    state.fov = DEFAULT.fov;
+    state.hour = DEFAULT.hour;
+    state.cycle = true;
+    state.drift = true;
+    $('b-cycle').classList.add('on');
+    $('b-drift').classList.add('on');
+    syncTimeUI();
+    touched();
+  }
+
+  $('b-cycle').addEventListener('click', e => {
+    state.cycle = !state.cycle;
+    e.currentTarget.classList.toggle('on', state.cycle);
+  });
+
+  $('b-drift').addEventListener('click', e => {
+    state.drift = !state.drift;
+    e.currentTarget.classList.toggle('on', state.drift);
+    touched();
+  });
+
+  $('b-gyro').addEventListener('click', toggleGyro);
+  $('b-vr').addEventListener('click', toggleVR);
+  $('b-full').addEventListener('click', toggleFull);
+  $('b-reset').addEventListener('click', resetView);
+
+  document.addEventListener('fullscreenchange', () => {
+    $('b-full').classList.toggle('on',
+      !!(document.fullscreenElement || document.webkitFullscreenElement));
+  });
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+
+  /* ============================================================
+     BOOT
+     ============================================================ */
+  syncTimeUI();
+  startTime = performance.now();
+  idleSince = startTime;
+  last = 0;
+
+  requestAnimationFrame(now => {
+    render(now);
+    requestAnimationFrame(() => veil.classList.add('gone'));
+    requestAnimationFrame(loop);
+  });
 })();
 </script>
 </body>
