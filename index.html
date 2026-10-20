@@ -119,18 +119,23 @@
     bottom: auto; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     opacity: 0; pointer-events: none;
-    width: min(480px, 90vw);
+    width: min(420px, 90vw);
   }
   body.vr #bar.show { opacity: 1; pointer-events: auto; }
   body.vr .panel {
     border-color: var(--amber);
-    background: rgba(12,17,30,.92);
+    background: rgba(12,17,30,.95);
     padding: 20px; border-radius: 24px;
   }
   /* Make buttons massive in VR for easy gaze targeting */
   body.vr button { padding: 12px 18px; font-size: 15px; margin-bottom: 6px; width: 100%; }
   body.vr .row { gap: 10px; flex-direction: column; align-items: stretch; }
   body.vr .row .lab, body.vr .row input[type=range] { display: none; } /* Hide time slider in VR menu */
+  
+  /* VR Close Row */
+  #vr-close-row { display: none; }
+  body.vr #vr-close-row { display: flex !important; margin-top: 10px; }
+  #b-close-vr-menu { background: var(--rose) !important; color: #fff !important; border-color: var(--rose) !important; font-weight: bold; }
 
   .row{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
   .lab{font-size:10px;letter-spacing:.18em;color:var(--mute)}
@@ -382,6 +387,9 @@
       <button id="b-calib" title="VR Calibration">⚙️</button>
       <button id="b-reset" title="Reset view">Reset</button>
     </div>
+    <div class="row" id="vr-close-row">
+      <button id="b-close-vr-menu">✕ Close VR Menu</button>
+    </div>
   </div>
 </div>
 
@@ -539,7 +547,7 @@ const aPos=gl.getAttribLocation(prog,'aPos');
 gl.enableVertexAttribArray(aPos);
 gl.vertexAttribPointer(aPos,2,gl.FLOAT,false,0,0);
 
-// ... Catalogs and Astronomy Helpers ...
+// --- Catalogs ---
 const STARS = [
   ['Sirius',6.752,-16.716,-1.46,'A1V'],['Canopus',6.399,-52.696,-0.74,'F0II'],['Arcturus',14.261,19.182,-0.05,'K1III'],['Vega',18.615,38.784,0.03,'A0V'],
   ['Capella',5.278,45.998,0.08,'G8III'],['Rigel',5.242,-8.202,0.13,'B8Ia'],['Procyon',7.655,5.225,0.34,'F5IV'],['Betelgeuse',5.919,7.407,0.50,'M1Ia'],
@@ -689,7 +697,7 @@ function rebuildPickList(date){
     const v = altAzToVec(alt, az);
     const p = projectVec(v, W, H);
     if (!p) return;
-    PICK.push({ name, type, sx: p.sx, sy: p.sy, color, extra });
+    PICK.push({ name, type, sx: p.sx, sy: p.sy, color, extra, v });
   };
   for (const [name, body, color] of PLANET_BODIES){
     try {
@@ -720,7 +728,7 @@ function rebuildPickList(date){
   }
 }
 
-// --- SPLIT SCREEN OVERLAY RENDERING ---
+// --- 2D Canvas Overlay ---
 function drawScene(date, W, H) {
   if (state.ground) drawCardinals(W,H);
   if (state.grid) drawGrid(date,W,H);
@@ -746,34 +754,44 @@ function drawOverlay(date){
 
   if (state.stereo) {
     const halfW = cw / 2;
-    const vY = vrState.vOffset * (ch / 800);
+    const scale = vrState.scale;
+    const shiftX = vrState.ipdOffset * (cw/800);
+    const shiftY = vrState.vOffset * (ch/800);
 
     // Left Eye
     ov.save();
+    ov.translate(shiftX + (halfW - halfW*scale)/2, shiftY + (ch - ch*scale)/2);
+    ov.scale(scale, scale);
     ov.beginPath(); ov.rect(0, 0, halfW, ch); ov.clip();
-    ov.translate(0, vY);
-    const lf = toeInF(F, R, -0.011);
+    
+    const lf = toeInF(F, R, 0.011); // Converge left eye to the right
     const oldF = [...F]; F[0]=lf[0]; F[1]=lf[1]; F[2]=lf[2];
+    
     drawScene(date, halfW, ch);
-    drawHoverHighlight(halfW, ch, true);
-    F[0]=oldF[0]; F[1]=oldF[1]; F[2]=oldF[2];
+    if (state.hovered) drawHoverHighlight(state.hovered.v, halfW, ch);
     drawReticle(halfW/2, ch/2, !!state.hovered);
+    
+    F[0]=oldF[0]; F[1]=oldF[1]; F[2]=oldF[2];
     ov.restore();
 
     // Right Eye
     ov.save();
-    ov.beginPath(); ov.rect(halfW, 0, halfW, ch); ov.clip();
-    ov.translate(halfW, vY);
-    const rf = toeInF(F, R, 0.011);
-    const oldF2 = [...F]; F[0]=rf[0]; F[1]=rf[1]; F[2]=rf[2];
+    ov.translate(halfW + shiftX + (halfW - halfW*scale)/2, shiftY + (ch - ch*scale)/2);
+    ov.scale(scale, scale);
+    ov.beginPath(); ov.rect(0, 0, halfW, ch); ov.clip();
+    
+    const rf = toeInF(F, R, -0.011); // Converge right eye to the left
+    F[0]=rf[0]; F[1]=rf[1]; F[2]=rf[2];
+    
     drawScene(date, halfW, ch);
-    drawHoverHighlight(halfW, ch, true);
-    F[0]=oldF2[0]; F[1]=oldF2[1]; F[2]=oldF2[2];
+    if (state.hovered) drawHoverHighlight(state.hovered.v, halfW, ch);
     drawReticle(halfW/2, ch/2, !!state.hovered);
+    
+    F[0]=oldF[0]; F[1]=oldF[1]; F[2]=oldF[2];
     ov.restore();
   } else {
     drawScene(date, cw, ch);
-    drawHoverHighlight(cw, ch, false);
+    if (state.hovered) drawHoverHighlight(state.hovered.v, cw, ch);
     drawReticle(state.pointerX, state.pointerY, !!state.hovered);
   }
 }
@@ -937,7 +955,7 @@ function drawReticle(cx, cy, hot){
   if (progress > 0) {
     ov.beginPath();
     ov.arc(cx, cy, 22, -Math.PI/2, -Math.PI/2 + (progress * 2 * Math.PI));
-    ov.strokeStyle = uiHot ? '#a78bfa' : '#ffc26b'; // Purple for UI, Amber for entities
+    ov.strokeStyle = uiHot ? '#a78bfa' : '#ffc26b';
     ov.lineWidth = 3;
     ov.stroke();
   }
@@ -960,8 +978,8 @@ function getDwellProgress() {
   const gaze = state.gyro || state.stereo;
   if (!gaze) return 0;
   const now = performance.now();
-  if (uiDwellTarget) return Math.min((now - uiDwellStart) / 1000, 1); // 1s for UI
-  if (state.hoverDwellTarget) return Math.min((now - state.hoverDwellStart) / 1500, 1); // 1.5s for entities
+  if (uiDwellTarget) return Math.min((now - uiDwellStart) / 1000, 1);
+  if (state.hoverDwellTarget) return Math.min((now - state.hoverDwellStart) / 1500, 1);
   return 0;
 }
 
@@ -969,22 +987,16 @@ function hexToRgba(hex, a){
   const h = hex.replace('#','');
   return `rgba(${parseInt(h.substring(0,2),16)},${parseInt(h.substring(2,4),16)},${parseInt(h.substring(4,6),16)},${a})`;
 }
-function drawHoverHighlight(W,H,isVR){
-  if (!state.hovered || uiDwellTarget) return;
-  const o = state.hovered;
-  let drawX = o.sx, drawY = o.sy;
-  // In VR, we need to adjust the highlight position based on the eye offset
-  if (isVR) {
-     const shift = vrState.ipdOffset * (window.innerWidth / 800);
-     if (W === window.innerWidth / 2) { // Left eye
-        drawX = o.sx - (o.sx - W/2) * (shift / W);
-     }
-  }
 
-  ov.beginPath(); ov.arc(drawX, drawY, 16, 0, 2*Math.PI);
-  ov.strokeStyle=o.color; ov.lineWidth=2; ov.stroke();
-  ov.beginPath(); ov.arc(drawX, drawY, 22, 0, 2*Math.PI);
-  ov.strokeStyle=hexToRgba(o.color, 0.35); ov.lineWidth=1; ov.stroke();
+function drawHoverHighlight(v, W, H) {
+  if (!state.hovered || uiDwellTarget) return;
+  const p = projectVec(v, W, H);
+  if (!p) return;
+  const color = state.hovered.color;
+  ov.beginPath(); ov.arc(p.sx, p.sy, 16, 0, 2*Math.PI);
+  ov.strokeStyle=color; ov.lineWidth=2; ov.stroke();
+  ov.beginPath(); ov.arc(p.sx, p.sy, 22, 0, 2*Math.PI);
+  ov.strokeStyle=hexToRgba(color, 0.35); ov.lineWidth=1; ov.stroke();
 }
 
 // --- INTERACTION ---
@@ -998,7 +1010,7 @@ function updateHover(){
   if (gaze){
     cx = window.innerWidth/2; cy = window.innerHeight/2;
     
-    // 1. Check if gaze is on a DOM element (VR Menu Interaction)
+    // 1. Check if gaze is on a DOM element
     const el = document.elementFromPoint(cx, cy);
     let gazeable = null;
     if (el) {
@@ -1006,7 +1018,6 @@ function updateHover(){
       else if (el.id === 'bar' || el.id === 'vr-menu-btn' || el.closest('.panel')) gazeable = el;
     }
     
-    // Ignore interaction if the menu is hidden
     if (gazeable && !$('bar').classList.contains('show') && !$('vr-menu-btn').contains(gazeable) && gazeable.id !== 'vr-menu-btn') {
       gazeable = null;
     }
@@ -1018,15 +1029,14 @@ function updateHover(){
         document.querySelectorAll('.vr-gaze').forEach(b => b.classList.remove('vr-gaze'));
         gazeable.classList.add('vr-gaze');
       } else if (performance.now() - uiDwellStart > 1000) {
-        // Trigger click
         gazeable.click();
-        uiDwellStart = performance.now() + 99999; // prevent re-trigger
+        uiDwellStart = performance.now() + 99999;
         setTimeout(() => {
           if (gazeable) gazeable.classList.remove('vr-gaze');
           uiDwellTarget = null;
         }, 300);
       }
-      setHovered(null); // Don't focus entities while in menu
+      setHovered(null);
       return;
     } else {
       if (uiDwellTarget) {
@@ -1035,8 +1045,8 @@ function updateHover(){
       }
     }
 
-    // 2. Check entities
-    radius = 80;
+    // 2. Check entities using angular distance
+    radius = Math.cos(10 * DEG); // 10 degree cone
   } else {
     if (!state.pointerActive){ setHovered(null); return; }
     cx = state.pointerX; cy = state.pointerY; radius = 30;
@@ -1046,8 +1056,15 @@ function updateHover(){
   
   let best = null, bestD = radius;
   for (const o of PICK){
-    const d = Math.hypot(o.sx-cx, o.sy-cy);
-    if (d < bestD){ bestD = d; best = o; }
+    if (gaze) {
+      // Dot product angular check
+      const dot = o.v[0]*F[0] + o.v[1]*F[1] + o.v[2]*F[2];
+      if (dot > bestD) { bestD = dot; best = o; }
+    } else {
+      // Screen distance check
+      const d = Math.hypot(o.sx-cx, o.sy-cy);
+      if (d < bestD){ bestD = d; best = o; }
+    }
   }
   setHovered(best);
 
@@ -1108,7 +1125,6 @@ function positionTooltip(o){
   }
 }
 
-// ... Info Panel, AI, Time, Gyro, Input, Loop, Buttons (Same as previous, just with close VR button logic) ...
 function showInfo(name, type, extra = {}){
   state.selected = { name, type };
   infoName.textContent = name;
@@ -1367,6 +1383,8 @@ function toeInF(f, r, a){
   const L = Math.hypot(out[0],out[1],out[2]) || 1;
   return [out[0]/L, out[1]/L, out[2]/L];
 }
+
+// --- WEBGL RENDERER (Fixed Stereo) ---
 function renderGL(now){
   resize();
   if (state.gyro && gyroQ) applyGyroBasis();
@@ -1375,40 +1393,67 @@ function renderGL(now){
   sunDirAt(date, sunV);
   moonDirAt(date, moonV);
   gl.useProgram(prog);
-  gl.uniform2f(U.uRes, W, H);
-  gl.uniform3f(U.uFwd,   F[0], F[1], F[2]);
-  gl.uniform3f(U.uRight, R[0], R[1], R[2]);
-  gl.uniform3f(U.uUp,    UP[0], UP[1], UP[2]);
-  gl.uniform3f(U.uSun,   sunV[0], sunV[1], sunV[2]);
-  gl.uniform3f(U.uMoon,  moonV[0], moonV[1], moonV[2]);
-  gl.uniform1f(U.uTanHalf, Math.tan(state.fov*0.5*DEG));
-  gl.uniform1f(U.uTime, (now-startTime)*0.001);
-  gl.uniform1f(U.uCloud, state.cloud);
-  gl.uniform1f(U.uGround, state.ground ? 1 : 0);
 
-  if (state.stereo){
-    const half = Math.floor(W/2);
-    const shift = vrState.ipdOffset * (W/800); 
-    const leftW = half + shift;
-    const rightW = W - leftW;
-    const vY = vrState.vOffset * (H/800);
+  if (state.stereo) {
+    const halfW = Math.floor(W/2);
+    const scale = vrState.scale;
+    const vW = Math.floor(halfW * scale);
+    const vH = Math.floor(H * scale);
+    const shiftX = Math.floor(vrState.ipdOffset * (W/800));
+    const shiftY = Math.floor(vrState.vOffset * (H/800));
 
     // Left Eye
-    const lf = toeInF(F, R, -0.011);
-    gl.viewport(0, vY, leftW, H);
+    let lx = shiftX + Math.floor((halfW - vW)/2);
+    let ly = shiftY + Math.floor((H - vH)/2);
+    gl.viewport(lx, ly, vW, vH);
+    gl.uniform2f(U.uRes, vW, vH);
+    
+    const lf = toeInF(F, R, 0.011);
     gl.uniform3f(U.uFwd, lf[0], lf[1], lf[2]);
+    gl.uniform3f(U.uRight, R[0], R[1], R[2]);
+    gl.uniform3f(U.uUp, UP[0], UP[1], UP[2]);
+    gl.uniform3f(U.uSun, sunV[0], sunV[1], sunV[2]);
+    gl.uniform3f(U.uMoon, moonV[0], moonV[1], moonV[2]);
+    gl.uniform1f(U.uTanHalf, Math.tan(state.fov*0.5*DEG));
+    gl.uniform1f(U.uTime, (now-startTime)*0.001);
+    gl.uniform1f(U.uCloud, state.cloud);
+    gl.uniform1f(U.uGround, state.ground ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     // Right Eye
-    const rf = toeInF(F, R, 0.011);
-    gl.viewport(leftW, vY, rightW, H);
+    let rx = halfW + shiftX + Math.floor((halfW - vW)/2);
+    let ry = shiftY + Math.floor((H - vH)/2);
+    gl.viewport(rx, ry, vW, vH);
+    gl.uniform2f(U.uRes, vW, vH);
+    
+    const rf = toeInF(F, R, -0.011);
     gl.uniform3f(U.uFwd, rf[0], rf[1], rf[2]);
+    gl.uniform3f(U.uRight, R[0], R[1], R[2]);
+    gl.uniform3f(U.uUp, UP[0], UP[1], UP[2]);
+    gl.uniform3f(U.uSun, sunV[0], sunV[1], sunV[2]);
+    gl.uniform3f(U.uMoon, moonV[0], moonV[1], moonV[2]);
+    gl.uniform1f(U.uTanHalf, Math.tan(state.fov*0.5*DEG));
+    gl.uniform1f(U.uTime, (now-startTime)*0.001);
+    gl.uniform1f(U.uCloud, state.cloud);
+    gl.uniform1f(U.uGround, state.ground ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
+    // Reset
     gl.viewport(0,0,W,H);
+    gl.uniform2f(U.uRes, W, H);
     gl.uniform3f(U.uFwd, F[0], F[1], F[2]);
   } else {
     gl.viewport(0,0,W,H);
+    gl.uniform2f(U.uRes, W, H);
+    gl.uniform3f(U.uFwd, F[0], F[1], F[2]);
+    gl.uniform3f(U.uRight, R[0], R[1], R[2]);
+    gl.uniform3f(U.uUp, UP[0], UP[1], UP[2]);
+    gl.uniform3f(U.uSun, sunV[0], sunV[1], sunV[2]);
+    gl.uniform3f(U.uMoon, moonV[0], moonV[1], moonV[2]);
+    gl.uniform1f(U.uTanHalf, Math.tan(state.fov*0.5*DEG));
+    gl.uniform1f(U.uTime, (now-startTime)*0.001);
+    gl.uniform1f(U.uCloud, state.cloud);
+    gl.uniform1f(U.uGround, state.ground ? 1 : 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
@@ -1483,7 +1528,7 @@ glCanvas.addEventListener('pointermove', e => {
   const dx = e.clientX - p.x, dy = e.clientY - p.y;
   p.x = e.clientX; p.y = e.clientY;
   if (Math.abs(dx) > 2 || Math.abs(dy) > 2) dragMoved = true;
-  if (state.gyro || state.stereo) return; // No dragging in VR
+  if (state.gyro || state.stereo) return;
   if (pointers.size === 1){
     const k = (state.fov*DEG) / Math.max(1, glCanvas.clientHeight);
     state.yaw   -= dx * k;
@@ -1575,8 +1620,14 @@ async function toggleVR(){
   if (state.stereo){
     if (state.fov > 85) state.fov = 85;
     try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape').catch(()=>{}); } catch(_){}
+    
+    // Auto Fullscreen for VR
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(()=>{});
+    }
+    
     infoPanel.classList.remove('open');
-    $('vr-menu-btn').click(); // Auto show menu on start
+    $('vr-menu-btn').click();
   } else {
     try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch(_){}
     $('bar').classList.remove('show');
@@ -1584,8 +1635,13 @@ async function toggleVR(){
 }
 $('vr-menu-btn').addEventListener('click', () => {
   $('bar').classList.toggle('show');
-  uiDwellStart = performance.now(); // Reset dwell timer so it doesn't instantly click something
+  uiDwellStart = performance.now() + 1000; 
+  uiDwellTarget = null;
 });
+$('b-close-vr-menu').addEventListener('click', () => {
+  $('bar').classList.remove('show');
+});
+
 function toggleFull(){
   const d = document;
   if (!d.fullscreenElement){
