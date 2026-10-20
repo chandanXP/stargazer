@@ -1,1242 +1,226 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AETHER // High-Fidelity Celestial Observatory</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Three.js Core -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    
-    <!-- Phosphor Icons for UI -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Celestial VR Explorer</title>
 
-    <style>
-        :root {
-            --hud-primary: #00f0ff;
-            --hud-secondary: #3b82f6;
-            --hud-warning: #f59e0b;
-            --hud-bg: rgba(6, 10, 20, 0.65);
-        }
+  <!-- Load A-Frame from CDN -->
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
 
-        * {
-            user-select: none;
-            -webkit-user-select: none;
-            box-sizing: border-box;
-        }
-
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #000000;
-            font-family: 'Inter', sans-serif;
-            color: #f8fafc;
-        }
-
-        .font-display { font-family: 'Space Grotesk', sans-serif; }
-        .font-mono-tech { font-family: 'JetBrains Mono', monospace; }
-
-        #canvas-container {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            background: #000;
-        }
-
-        .hud-panel {
-            background: var(--hud-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(0, 240, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 240, 255, 0.05);
-        }
-
-        .hud-button {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            transition: all 0.2s ease;
-        }
-
-        .hud-button:hover, .hud-button.active {
-            border-color: var(--hud-primary);
-            background: rgba(0, 240, 255, 0.1);
-            color: #fff;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
-        }
-
-        @keyframes scan-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        @keyframes scan-pulse {
-            0% { transform: scale(0.98); opacity: 0.8; }
-            50% { transform: scale(1.02); opacity: 1; }
-            100% { transform: scale(0.98); opacity: 0.8; }
-        }
-
-        .reticle-spin { animation: scan-spin 20s infinite linear; }
-        .reticle-spin-reverse { animation: scan-spin 15s infinite linear reverse; }
-        .reticle-pulse { animation: scan-pulse 3s infinite ease-in-out; }
-
-        .reticle-locked .reticle-ring {
-            stroke: var(--hud-warning);
-            transition: stroke 0.3s ease;
-        }
-
-        #vr-divider {
-            display: none;
-            position: fixed;
-            top: 0; bottom: 0; left: 50%;
-            width: 2px;
-            background: linear-gradient(to bottom, transparent, rgba(0, 240, 255, 0.3), transparent);
-            z-index: 45;
-            pointer-events: none;
-        }
-
-        .vr-eye-center {
-            display: none;
-            position: fixed;
-            top: 50%;
-            width: 4px; height: 4px;
-            background: #00f0ff;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px #00f0ff;
-            z-index: 45;
-        }
-
-        /* Custom minimal scrollbar */
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 10px; }
-    </style>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    /* Hide the default A-Frame VR button text for a cleaner look */
+    .a-enter-vr { display: none; }
+  </style>
 </head>
 <body>
 
-    <div id="canvas-container"></div>
+  <a-scene
+    background="color: #000"
+    fog="type: exponential; color: #000; density: 0.001"
+    cursor="rayOrigin: mouse"
+    raycaster="objects: .clickable; far: 1000"
+  >
 
-    <div id="vr-divider"></div>
-    <div id="vr-eye-left" class="vr-eye-center" style="left: 25%;"></div>
-    <div id="vr-eye-right" class="vr-eye-center" style="left: 75%;"></div>
+    <!-- ==================== ASSETS ==================== -->
+    <a-assets>
+      <!-- Procedural star field (using a simple gradient sphere as a sky) -->
+      <img id="skyTexture" src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
 
-    <!-- Central Telescope Reticle -->
-    <div id="center-reticle" class="fixed inset-0 pointer-events-none z-20 flex items-center justify-center">
-        <div class="relative flex items-center justify-center reticle-pulse">
-            <!-- Complex layered SVG Reticle -->
-            <svg id="main-reticle-svg" class="w-32 h-32 sm:w-40 sm:h-40 opacity-60 transition-opacity duration-300" viewBox="0 0 120 120">
-                <circle class="reticle-ring reticle-spin" cx="60" cy="60" r="56" fill="none" stroke="#00f0ff" stroke-width="0.5" stroke-dasharray="2 6" />
-                <circle class="reticle-ring reticle-spin-reverse" cx="60" cy="60" r="48" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="20 10 5 10" />
-                <path class="reticle-ring" d="M 60 2 L 60 12 M 60 108 L 60 118 M 2 60 L 12 60 M 108 60 L 118 60" stroke="#00f0ff" stroke-width="1.5" />
-                <circle cx="60" cy="60" r="1.5" fill="#00f0ff" />
-            </svg>
-            
-            <div id="lock-label" class="absolute top-[110%] whitespace-nowrap px-3 py-1 rounded bg-black/80 border border-cyan-500/30 text-[10px] font-mono-tech text-cyan-300 tracking-[0.2em] uppercase opacity-0 transition-opacity duration-300">
-                TARGET LOCKED
-            </div>
-        </div>
-    </div>
+      <!-- Planet textures (public domain / NASA-like images from A-Frame examples) -->
+      <img id="sunTex"      src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
+      <img id="earthTex"    src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
+      <img id="marsTex"     src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
+      <img id="jupiterTex"  src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
+      <img id="saturnTex"   src="https://cdn.aframe.io/aframe/examples/boilerplate/panorama.jpg" crossorigin="anonymous" />
 
-    <main id="ui-layer" class="fixed inset-0 pointer-events-none z-30 flex flex-col justify-between p-4 sm:p-6">
-        
-        <!-- Top Navigation & Telemetry -->
-        <header class="flex flex-wrap items-start justify-between gap-4 w-full">
-            <div class="hud-panel px-4 py-2.5 rounded-xl pointer-events-auto flex items-center gap-4">
-                <div class="w-10 h-10 rounded-lg bg-black/50 border border-cyan-500/30 flex items-center justify-center shadow-[inset_0_0_15px_rgba(0,240,255,0.2)]">
-                    <i class="ph ph-aperture text-2xl text-cyan-400"></i>
-                </div>
-                <div>
-                    <h1 class="font-display font-bold text-base tracking-widest">AETHER<span class="text-cyan-400">.OBSERVATORY</span></h1>
-                    <div class="flex items-center gap-3 mt-1 text-[10px] font-mono-tech text-slate-400 uppercase">
-                        <span id="tel-ra" class="text-cyan-200">RA: 00h 00m</span>
-                        <span class="w-1 h-1 rounded-full bg-slate-600"></span>
-                        <span id="tel-dec" class="text-blue-200">DEC: +00.0°</span>
-                        <span class="w-1 h-1 rounded-full bg-slate-600 hidden sm:block"></span>
-                        <span id="tel-fov" class="text-slate-300 hidden sm:block">FOV: 60°</span>
-                    </div>
-                </div>
-            </div>
+      <!-- For a more realistic look, replace the above with actual planet textures:
+           e.g., https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg
+           (Note: ensure CORS is allowed or download the textures locally.) -->
+    </a-assets>
 
-            <!-- Controls -->
-            <div class="flex items-center gap-2 pointer-events-auto">
-                <button id="btn-gyro" class="hud-button px-3 py-2.5 rounded-xl flex items-center gap-2 text-xs font-mono-tech">
-                    <i class="ph ph-device-mobile-camera text-lg"></i>
-                    <span class="hidden sm:inline">GYRO</span>
-                </button>
-                <button id="btn-vr" class="hud-button px-3 py-2.5 rounded-xl flex items-center gap-2 text-xs font-mono-tech">
-                    <i class="ph ph-goggles text-lg text-purple-400"></i>
-                    <span class="hidden sm:inline">VR SPLIT</span>
-                </button>
-                <button id="btn-catalog" class="hud-button px-3 py-2.5 rounded-xl flex items-center gap-2 text-xs font-mono-tech">
-                    <i class="ph ph-magnifying-glass text-lg text-cyan-400"></i>
-                    <span class="hidden sm:inline">DATABASE</span>
-                </button>
-            </div>
-        </header>
+    <!-- ==================== SKY ==================== -->
+    <a-sky src="#skyTexture" rotation="0 -130 0"></a-sky>
 
-        <footer class="flex justify-start w-full">
-            <div id="inspector-card" class="hud-panel rounded-xl p-5 pointer-events-auto w-full sm:w-[420px] transform translate-y-4 opacity-0 transition-all duration-500">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <span id="ins-type" class="text-[9px] font-mono-tech uppercase tracking-[0.2em] px-2 py-1 rounded bg-black/50 border border-slate-700 text-slate-300">
-                            CELESTIAL BODY
-                        </span>
-                        <span id="ins-class" class="text-[10px] font-mono-tech text-slate-400"></span>
-                    </div>
-                    <button id="btn-zoom" class="hud-button px-2 py-1 rounded text-[10px] font-mono-tech flex items-center gap-1 text-cyan-300">
-                        <i class="ph ph-corners-out"></i> ZOOM
-                    </button>
-                </div>
-                
-                <h2 id="ins-name" class="font-display text-2xl font-bold text-white tracking-wide mb-2">Unknown</h2>
-                <p id="ins-desc" class="text-xs text-slate-300 leading-relaxed font-light line-clamp-3 mb-4"></p>
-                
-                <div class="grid grid-cols-3 gap-2 border-t border-white/10 pt-3">
-                    <div>
-                        <div class="text-[9px] font-mono-tech text-slate-500 uppercase mb-1">Distance</div>
-                        <div id="ins-dist" class="text-xs font-mono-tech text-cyan-200">--</div>
-                    </div>
-                    <div>
-                        <div class="text-[9px] font-mono-tech text-slate-500 uppercase mb-1">Magnitude</div>
-                        <div id="ins-mag" class="text-xs font-mono-tech text-yellow-200">--</div>
-                    </div>
-                    <div>
-                        <div class="text-[9px] font-mono-tech text-slate-500 uppercase mb-1">Temp</div>
-                        <div id="ins-temp" class="text-xs font-mono-tech text-red-200">--</div>
-                    </div>
-                </div>
-            </div>
-        </footer>
-    </main>
+    <!-- ==================== CAMERA RIG ==================== -->
+    <!-- The rig allows movement; the camera handles look‑around (gyro on mobile). -->
+    <a-entity id="rig" position="0 1.6 0">
+      <a-entity id="camera" camera look-controls wasd-controls position="0 0 0">
+        <!-- Gaze cursor for selection -->
+        <a-entity
+          cursor="fuse: true; fuseTimeout: 800"
+          raycaster="objects: .clickable; far: 1000"
+          position="0 0 -1"
+          geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.015"
+          material="color: #FFF; opacity: 0.8"
+          animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.5 0.5 0.5; dur: 800"
+          animation__mouseleave="property: scale; startEvents: mouseleave; from: 0.5 0.5 0.5; to: 1 1 1; dur: 200"
+        ></a-entity>
+      </a-entity>
+    </a-entity>
 
-    <!-- Slide-out Catalog Drawer -->
-    <div id="catalog-drawer" class="fixed inset-y-0 right-0 w-full sm:w-96 bg-black/95 border-l border-cyan-900/50 z-50 transform translate-x-full transition-transform duration-300 flex flex-col backdrop-blur-xl">
-        <div class="p-4 border-b border-white/10 flex flex-col gap-3">
-            <div class="flex justify-between items-center">
-                <h3 class="font-display font-bold text-lg tracking-widest text-cyan-400">DEEP SPACE DATABASE</h3>
-                <button id="btn-close-catalog" class="p-2 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition">
-                    <i class="ph ph-x text-xl"></i>
-                </button>
-            </div>
-            <!-- Search Bar -->
-            <div class="relative">
-                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-cyan-500"></i>
-                <input type="text" id="catalog-search" placeholder="Search 2,500+ galaxies, stars, planets..." class="w-full bg-slate-900/80 border border-cyan-500/30 rounded-lg py-2 pl-9 pr-4 text-xs font-mono-tech text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition">
-            </div>
-            <div class="text-[9px] font-mono-tech text-slate-500 uppercase flex justify-between">
-                <span>Connecting to telemetry...</span>
-                <span id="catalog-count" class="text-cyan-400">Loading DB...</span>
-            </div>
-        </div>
-        <div id="catalog-list" class="flex-1 overflow-y-auto p-4 space-y-2">
-            <!-- Populated via JS -->
-        </div>
-    </div>
+    <!-- ==================== INFO PANEL ==================== -->
+    <!-- This panel appears when a celestial object is selected. -->
+    <a-entity id="infoPanel" visible="false" position="0 1.5 -2" geometry="primitive: plane; width: 1.5; height: 0.8" material="color: #111; opacity: 0.9">
+      <a-text id="infoTitle" value="Object Name" align="center" width="1.4" position="0 0.25 0.01" color="#FFD700"></a-text>
+      <a-text id="infoDesc" value="Description goes here." align="center" width="1.4" wrap-count="40" position="0 0 0.01" color="#FFF"></a-text>
+      <!-- Close button -->
+      <a-entity
+        id="closeBtn"
+        geometry="primitive: plane; width: 0.3; height: 0.1"
+        material="color: #900"
+        position="0 -0.35 0.01"
+        text="value: CLOSE; align: center; width: 0.28; color: #FFF"
+        class="clickable"
+      ></a-entity>
+    </a-entity>
 
-    <script>
-        /**
-         * MASTER SHADER LIBRARY
-         * We use GLSL (Graphics Library Shader Language) to generate photorealistic
-         * textures procedurally on the GPU. This eliminates the need for external images
-         * and allows for dynamic, high-fidelity rendering.
-         */
+    <!-- ==================== CELESTIAL OBJECTS ==================== -->
+    <!-- Each object has class="clickable" and a data‑ attribute for its info. -->
 
-        // Common 3D Simplex Noise Function used across shaders for realism
-        const glslNoise = `
-            vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-            vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-            vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-            vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+    <!-- SUN -->
+    <a-sphere
+      id="sun"
+      class="clickable"
+      data-name="Sun"
+      data-desc="The Sun is a G-type main-sequence star at the center of the Solar System. It contains 99.86% of the system's mass and is the source of light and heat for all planets."
+      position="0 1.5 -8"
+      radius="1.5"
+      material="color: #FFD700; emissive: #FF8C00; emissiveIntensity: 1.5"
+    ></a-sphere>
 
-            float snoise(vec3 v) {
-                const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-                const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-                
-                vec3 i  = floor(v + dot(v, C.yyy));
-                vec3 x0 = v - i + dot(i, C.xxx);
-                
-                vec3 g = step(x0.yzx, x0.xyz);
-                vec3 l = 1.0 - g;
-                vec3 i1 = min(g.xyz, l.zxy);
-                vec3 i2 = max(g.xyz, l.zxy);
-                
-                vec3 x1 = x0 - i1 + C.xxx;
-                vec3 x2 = x0 - i2 + C.yyy;
-                vec3 x3 = x0 - D.yyy;
-                
-                i = mod289(i);
-                vec4 p = permute(permute(permute(
-                            i.z + vec4(0.0, i1.z, i2.z, 1.0))
-                          + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-                          + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-                          
-                float n_ = 0.142857142857;
-                vec3 ns = n_ * D.wyz - D.xzx;
-                
-                vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-                
-                vec4 x_ = floor(j * ns.z);
-                vec4 y_ = floor(j - 7.0 * x_);
-                
-                vec4 x = x_ *ns.x + ns.yyyy;
-                vec4 y = y_ *ns.x + ns.yyyy;
-                vec4 h = 1.0 - abs(x) - abs(y);
-                
-                vec4 b0 = vec4(x.xy, y.xy);
-                vec4 b1 = vec4(x.zw, y.zw);
-                
-                vec4 s0 = floor(b0)*2.0 + 1.0;
-                vec4 s1 = floor(b1)*2.0 + 1.0;
-                vec4 sh = -step(h, vec4(0.0));
-                
-                vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-                vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-                
-                vec3 p0 = vec3(a0.xy, h.x);
-                vec3 p1 = vec3(a0.zw, h.y);
-                vec3 p2 = vec3(a1.xy, h.z);
-                vec3 p3 = vec3(a1.zw, h.w);
-                
-                vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-                p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-                
-                vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-                m = m * m;
-                return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
-            }
-            
-            // Fractal Brownian Motion for complex details
-            float fbm(vec3 p) {
-                float value = 0.0;
-                float amplitude = 0.5;
-                float frequency = 1.0;
-                for (int i = 0; i < 5; i++) {
-                    value += amplitude * snoise(p * frequency);
-                    p *= 2.0;
-                    amplitude *= 0.5;
-                }
-                return value;
-            }
-        `;
+    <!-- EARTH -->
+    <a-sphere
+      id="earth"
+      class="clickable"
+      data-name="Earth"
+      data-desc="Earth is the third planet from the Sun and the only astronomical object known to harbor life. About 71% of its surface is covered with water."
+      position="4 1.2 -6"
+      radius="0.8"
+      material="src: #earthTex; color: #2E8B57"
+    ></a-sphere>
 
-        const sunVertexShader = `
-            varying vec2 vUv;
-            varying vec3 vPosition;
-            varying vec3 vNormal;
-            void main() {
-                vUv = uv;
-                vPosition = position;
-                vNormal = normalize(normalMatrix * normal);
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-        `;
+    <!-- MARS -->
+    <a-sphere
+      id="mars"
+      class="clickable"
+      data-name="Mars"
+      data-desc="Mars is the fourth planet from the Sun. It is a dusty, cold, desert world with a very thin atmosphere. Evidence suggests it once had liquid water on its surface."
+      position="-4 1.8 -7"
+      radius="0.6"
+      material="color: #C1440E"
+    ></a-sphere>
 
-        const sunFragmentShader = `
-            uniform float time;
-            uniform vec3 color1;
-            uniform vec3 color2;
-            varying vec2 vUv;
-            varying vec3 vPosition;
-            varying vec3 vNormal;
-            
-            ${glslNoise}
+    <!-- JUPITER -->
+    <a-sphere
+      id="jupiter"
+      class="clickable"
+      data-name="Jupiter"
+      data-desc="Jupiter is the largest planet in the Solar System. It is a gas giant with a mass more than two and a half times that of all the other planets combined."
+      position="6 0.5 -12"
+      radius="1.2"
+      material="color: #D8A47F"
+    ></a-sphere>
 
-            void main() {
-                // Moving noise for boiling plasma effect
-                vec3 p = vPosition * 2.0;
-                float noiseVal = fbm(p + time * 0.2);
-                
-                // Add high frequency noise for granularity
-                float detail = snoise(p * 10.0 - time * 0.5) * 0.1;
-                
-                float mixVal = smoothstep(-0.2, 0.8, noiseVal + detail);
-                vec3 finalColor = mix(color1, color2, mixVal);
-                
-                // Edge glow (Fresnel)
-                float fresnel = dot(vNormal, vec3(0.0, 0.0, 1.0));
-                fresnel = clamp(1.0 - fresnel, 0.0, 1.0);
-                finalColor += vec3(1.0, 0.8, 0.2) * pow(fresnel, 3.0);
-                
-                gl_FragColor = vec4(finalColor, 1.0);
-            }
-        `;
+    <!-- SATURN (with a simple ring) -->
+    <a-entity position="-6 1.0 -14">
+      <a-sphere
+        class="clickable"
+        data-name="Saturn"
+        data-desc="Saturn is the sixth planet from the Sun and the second-largest in the Solar System. It is a gas giant with a prominent ring system made mostly of ice particles."
+        radius="1.0"
+        material="color: #F4C430"
+      ></a-sphere>
+      <a-ring
+        radius-inner="1.2"
+        radius-outer="2.0"
+        rotation="-90 0 0"
+        material="color: #E0C080; opacity: 0.6; side: double"
+      ></a-ring>
+    </a-entity>
 
-        const gasGiantFragmentShader = `
-            uniform float time;
-            uniform vec3 color1;
-            uniform vec3 color2;
-            uniform vec3 color3;
-            varying vec2 vUv;
-            varying vec3 vPosition;
-            varying vec3 vNormal;
+    <!-- NEBULA (a coloured cloud‑like sphere) -->
+    <a-sphere
+      id="nebula"
+      class="clickable"
+      data-name="Orion Nebula"
+      data-desc="The Orion Nebula is a diffuse nebula situated in the Milky Way. It is one of the brightest nebulae and is visible to the naked eye in the night sky."
+      position="2 3 -20"
+      radius="3"
+      material="color: #8A2BE2; opacity: 0.4; transparent: true; emissive: #4B0082"
+    ></a-sphere>
 
-            ${glslNoise}
+    <!-- BLACK HOLE (a dark sphere with a glowing ring) -->
+    <a-entity position="-3 2 -25">
+      <a-sphere
+        class="clickable"
+        data-name="Black Hole"
+        data-desc="A black hole is a region of spacetime where gravity is so strong that nothing—no particles or even electromagnetic radiation such as light—can escape from it."
+        radius="1.5"
+        material="color: #000; shader: flat"
+      ></a-sphere>
+      <a-torus
+        radius="2.2"
+        radius-tubular="0.15"
+        rotation="90 0 0"
+        material="color: #FF4500; emissive: #FF4500; opacity: 0.8"
+      ></a-torus>
+    </a-entity>
 
-            void main() {
-                // Stretch noise along Y axis to create Jupiter/Saturn bands
-                vec3 p = vPosition;
-                // Add turbulence to the bands
-                float turb = fbm(vec3(p.x * 2.0, p.y * 5.0, p.z * 2.0) + time * 0.05);
-                float band = sin(p.y * 15.0 + turb * 3.0);
-                
-                vec3 finalColor = mix(color1, color2, smoothstep(-1.0, 0.0, band));
-                finalColor = mix(finalColor, color3, smoothstep(0.5, 1.0, band));
-                
-                // Basic diffuse lighting
-                vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-                float diff = max(dot(vNormal, lightDir), 0.0);
-                
-                // Ambient + Diffuse + Shadow
-                finalColor *= (diff * 0.8 + 0.2);
-                
-                gl_FragColor = vec4(finalColor, 1.0);
-            }
-        `;
+    <!-- DISTANT STARS (procedurally placed tiny spheres) -->
+    <a-entity id="starField">
+      <a-sphere position="10 10 -30" radius="0.2" material="color: #FFF; emissive: #FFF"></a-sphere>
+      <a-sphere position="-15 5 -35" radius="0.15" material="color: #FFF; emissive: #FFF"></a-sphere>
+      <a-sphere position="20 -5 -40" radius="0.25" material="color: #FFF; emissive: #FFF"></a-sphere>
+      <a-sphere position="-8 -10 -50" radius="0.1" material="color: #FFF; emissive: #FFF"></a-sphere>
+      <a-sphere position="5 15 -60" radius="0.2" material="color: #FFF; emissive: #FFF"></a-sphere>
+      <!-- Add more stars as needed... -->
+    </a-entity>
 
-        const rockyFragmentShader = `
-            uniform vec3 baseColor;
-            uniform vec3 darkColor;
-            varying vec2 vUv;
-            varying vec3 vPosition;
-            varying vec3 vNormal;
+  </a-scene>
 
-            ${glslNoise}
+  <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+  <script>
+    // Wait for A-Frame to load
+    AFRAME.registerComponent('info-interaction', {
+      init: function () {
+        const scene = this.el.sceneEl;
+        const infoPanel = document.querySelector('#infoPanel');
+        const infoTitle = document.querySelector('#infoTitle');
+        const infoDesc = document.querySelector('#infoDesc');
+        const closeBtn = document.querySelector('#closeBtn');
 
-            void main() {
-                // High frequency noise for craters and terrain
-                float n1 = fbm(vPosition * 4.0);
-                float n2 = fbm(vPosition * 12.0);
-                float terrain = n1 * 0.7 + n2 * 0.3;
-                
-                vec3 col = mix(darkColor, baseColor, smoothstep(-0.2, 0.5, terrain));
-                
-                // Lighting simulation (fake bump mapping based on noise derivative)
-                vec3 lightDir = normalize(vec3(1.0, 0.5, 1.0));
-                float diff = max(dot(vNormal, lightDir), 0.0);
-                
-                // Add terminator shadow gradient
-                col *= (diff * 0.8 + 0.05);
-                
-                gl_FragColor = vec4(col, 1.0);
-            }
-        `;
-
-        const atmosphereFragmentShader = `
-            uniform vec3 atmosphereColor;
-            varying vec3 vNormal;
-            void main() {
-                float intensity = pow(0.65 - dot(vNormal, vec3(0, 0, 1.0)), 4.0);
-                gl_FragColor = vec4(atmosphereColor, intensity * 1.5);
-            }
-        `;
-
-        // Shader for Spiral Galaxies (e.g., Andromeda)
-        const galaxyFragmentShader = `
-            uniform float time;
-            uniform vec3 coreColor;
-            uniform vec3 armColor;
-            varying vec2 vUv;
-            varying vec3 vPosition;
-
-            ${glslNoise}
-
-            void main() {
-                vec2 uv = vUv * 2.0 - 1.0;
-                float dist = length(uv);
-                
-                // Spiral mathematics
-                float angle = atan(uv.y, uv.x);
-                float spiral = sin(angle * 2.0 + dist * 10.0 - time * 0.5);
-                
-                // Dust lanes and noise
-                float noise = fbm(vec3(uv * 10.0, time * 0.1));
-                
-                float core = exp(-dist * 5.0);
-                float arms = smoothstep(0.2, 0.8, spiral * noise) * exp(-dist * 2.0);
-                
-                vec3 finalColor = mix(armColor, coreColor, core) * (core + arms);
-                float alpha = smoothstep(1.0, 0.2, dist) * (core + arms * 0.5);
-                
-                if (alpha < 0.05) discard;
-                gl_FragColor = vec4(finalColor, alpha);
-            }
-        `;
-
-        // Shader for Emission Nebulae (e.g., Orion Nebula)
-        const nebulaFragmentShader = `
-            uniform float time;
-            uniform vec3 color1;
-            uniform vec3 color2;
-            varying vec2 vUv;
-            varying vec3 vPosition;
-
-            ${glslNoise}
-
-            void main() {
-                // Complex volumetric turbulence
-                float n1 = fbm(vPosition * 2.0 + time * 0.05);
-                float n2 = fbm(vPosition * 4.0 - time * 0.02);
-                
-                float density = (n1 * 0.6 + n2 * 0.4);
-                
-                // Soft edges
-                float dist = length(vPosition);
-                float falloff = smoothstep(1.0, 0.4, dist);
-                
-                vec3 finalColor = mix(color1, color2, n1);
-                
-                if(density * falloff < 0.1) discard;
-                gl_FragColor = vec4(finalColor, density * falloff * 0.8);
-            }
-        `;
-
-        const starVertexShader = `
-            attribute float size;
-            attribute vec3 customColor;
-            varying vec3 vColor;
-            void main() {
-                vColor = customColor;
-                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_PointSize = size * (400.0 / -mvPosition.z);
-                gl_Position = projectionMatrix * mvPosition;
-            }
-        `;
-
-        const starFragmentShader = `
-            varying vec3 vColor;
-            void main() {
-                // Create a soft glowing circle for stars
-                vec2 xy = gl_PointCoord.xy - vec2(0.5);
-                float ll = length(xy);
-                if (ll > 0.5) discard;
-                
-                // Gaussian-like falloff
-                float intensity = exp(-ll * ll * 20.0);
-                gl_FragColor = vec4(vColor, intensity);
-            }
-        `;
-
-        // ============================================================================
-        // MASSIVE ASTRONOMICAL DATABASE GENERATOR
-        // Combines hardcoded high-fidelity objects with procedural exoplanets & stars
-        // ============================================================================
-        
-        let ASTRONOMY_DB = [];
-
-        function generateMassiveDatabase() {
-            const db = [];
-
-            // 1. SOLAR SYSTEM
-            const solarSystem = [
-                { id: 'sol', name: 'The Sun', class: 'G2V Yellow Dwarf', type: 'STAR', dist: '1 AU', mag: '-26.74', temp: '5,778 K', ra: 0, dec: 0, radius: 25, shader: 'sun', color1: 0xffdd00, color2: 0xff4500, desc: 'The star at the center of the Solar System. It is a nearly perfect sphere of hot plasma, animated by magnetic fields to generate solar flares and sunspots.' },
-                { id: 'mercury', name: 'Mercury', class: 'Terrestrial', type: 'PLANET', dist: '0.39 AU', mag: '0.28', temp: '440 K', ra: 1.2, dec: 8, radius: 4, shader: 'rocky', baseColor: 0x888888, darkColor: 0x333333, desc: 'The smallest planet in the Solar System and the closest to the Sun.' },
-                { id: 'venus', name: 'Venus', class: 'Terrestrial', type: 'PLANET', dist: '0.72 AU', mag: '-4.14', temp: '737 K', ra: 2.1, dec: 14, radius: 9, shader: 'rocky', baseColor: 0xe3bb76, darkColor: 0x8a6327, hasAtmosphere: true, atmColor: 0xffcc88, desc: 'Wrapped in a thick, toxic atmosphere that traps heat in a runaway greenhouse effect.' },
-                { id: 'moon', name: 'The Moon', class: 'Rocky Satellite', type: 'MOON', dist: '384,400 km', mag: '-12.74', temp: '250 K', ra: 1.5, dec: 10, radius: 5, shader: 'rocky', baseColor: 0xdddddd, darkColor: 0x555555, desc: 'Earth\'s only natural satellite. Procedurally generated craters and maria cover its heavily bombarded, airless surface.' },
-                { id: 'mars', name: 'Mars', class: 'Terrestrial', type: 'PLANET', dist: '1.5 AU', mag: '-2.94', temp: '210 K', ra: 7.4, dec: 24, radius: 8, shader: 'rocky', baseColor: 0xc1440e, darkColor: 0x7a2203, hasAtmosphere: true, atmColor: 0xff7755, desc: 'The Red Planet. Iron oxide on its surface gives it a rusty hue, possessing a thin carbon dioxide atmosphere.' },
-                { id: 'jupiter', name: 'Jupiter', class: 'Gas Giant', type: 'PLANET', dist: '4.2 AU', mag: '-2.94', temp: '165 K', ra: 4.8, dec: 21, radius: 18, shader: 'gas', color1: 0xc99039, color2: 0xe3dccb, color3: 0xb86f32, desc: 'The largest planet in our solar system. Known for its turbulent atmosphere, sweeping cloud bands of ammonia, and the Great Red Spot.' },
-                { id: 'saturn', name: 'Saturn', class: 'Gas Giant', type: 'PLANET', dist: '9.5 AU', mag: '0.46', temp: '134 K', ra: 23.2, dec: -6, radius: 15, shader: 'gas', color1: 0xe3c58e, color2: 0xcfa968, color3: 0xf2dab2, hasRings: true, desc: 'Adorned with a dazzling, complex system of icy rings, Saturn is a massive gas giant primarily composed of hydrogen and helium.' },
-                { id: 'neptune', name: 'Neptune', class: 'Ice Giant', type: 'PLANET', dist: '30.1 AU', mag: '7.8', temp: '72 K', ra: 22.5, dec: -11, radius: 12, shader: 'gas', color1: 0x274687, color2: 0x3b5fbd, color3: 0x1f3461, desc: 'Dark, cold, and whipped by supersonic winds, ice giant Neptune is the eighth and most distant major planet.' }
-            ];
-
-            // 2. FAMOUS DEEP SKY OBJECTS (Galaxies, Nebulae, Black Holes)
-            const deepSky = [
-                { id: 'sgra', name: 'Sagittarius A*', class: 'Supermassive', type: 'BLACK HOLE', dist: '26,670 ly', mag: '4.1M M☉', temp: 'Plasma', ra: 17.76, dec: -29.0, radius: 20, shader: 'blackhole', color1: 0xffaa00, desc: 'The supermassive black hole at the galactic center of the Milky Way. Its extreme gravity bends light into a visible photon ring.' },
-                { id: 'm31', name: 'Andromeda Galaxy', class: 'Spiral Galaxy', type: 'GALAXY', dist: '2.5M ly', mag: '3.44', temp: 'Varies', ra: 0.71, dec: 41.2, radius: 40, shader: 'galaxy', color1: 0xffffff, color2: 0x3366ff, desc: 'M31: The nearest major galaxy to the Milky Way, containing approximately one trillion stars.' },
-                { id: 'm42', name: 'Orion Nebula', class: 'Diffuse Nebula', type: 'NEBULA', dist: '1,344 ly', mag: '4.0', temp: '10,000 K', ra: 5.58, dec: -5.3, radius: 30, shader: 'nebula', color1: 0xff0066, color2: 0x00ccff, desc: 'M42: A massive stellar nursery situated in the Milky Way, south of Orion\'s Belt. One of the brightest nebulae.' },
-                { id: 'm1', name: 'Crab Nebula', class: 'Supernova Remnant', type: 'NEBULA', dist: '6,500 ly', mag: '8.4', temp: 'Pulsar', ra: 5.57, dec: 22.0, radius: 25, shader: 'nebula', color1: 0xff4422, color2: 0x33aaee, desc: 'M1: The expanding remnant of a star that exploded in a supernova observed by Chinese astronomers in 1054 AD.' }
-            ];
-
-            // 3. FAMOUS BRIGHT STARS
-            const brightStars = [
-                { name: 'Sirius A', class: 'A1V Main Sequence', dist: '8.6 ly', ra: 6.75, dec: -16.7, radius: 12, color1: 0xbbd8ff, color2: 0xffffff },
-                { name: 'Betelgeuse', class: 'M1-2 Red Supergiant', dist: '642 ly', ra: 5.92, dec: 7.4, radius: 22, color1: 0xff3300, color2: 0xaa0000 },
-                { name: 'Rigel', class: 'B8Ia Blue Supergiant', dist: '863 ly', ra: 5.24, dec: -8.2, radius: 16, color1: 0x88ccff, color2: 0xffffff },
-                { name: 'Arcturus', class: 'K0III Red Giant', dist: '36.7 ly', ra: 14.26, dec: 19.1, radius: 18, color1: 0xffa500, color2: 0xff6600 },
-                { name: 'Vega', class: 'A0V Main Sequence', dist: '25 ly', ra: 18.61, dec: 38.7, radius: 10, color1: 0xbbccff, color2: 0xffffff },
-                { name: 'Polaris', class: 'F7Ib Supergiant', dist: '433 ly', ra: 2.53, dec: 89.2, radius: 14, color1: 0xfff4ea, color2: 0xffffff }
-            ].map((s, i) => ({ ...s, id: `star_${i}`, type: 'STAR', mag: '0.0', temp: 'Variable', shader: 'sun', desc: `Prominent navigational star in the night sky.` }));
-
-            db.push(...solarSystem, ...deepSky, ...brightStars);
-
-            // 4. PROCEDURAL CATALOG (Massive generation of exoplanets, Kepler targets, and NGC objects)
-            // Generates 2,500 highly-optimized background objects for the catalog
-            const prefixes = ['Kepler', 'Gliese', 'HD', 'HIP', 'NGC'];
-            const types = [
-                { type: 'EXOPLANET', shader: 'gas', class: 'Hot Jupiter' },
-                { type: 'EXOPLANET', shader: 'rocky', class: 'Super-Earth' },
-                { type: 'STAR', shader: 'sun', class: 'Red Dwarf' },
-                { type: 'GALAXY', shader: 'galaxy', class: 'Elliptical' }
-            ];
-
-            for(let i=0; i<2500; i++) {
-                const p = prefixes[Math.floor(Math.random() * prefixes.length)];
-                const idNum = Math.floor(Math.random() * 90000) + 1000;
-                const suffix = p === 'Kepler' || p === 'Gliese' ? ['b','c','d','e'][Math.floor(Math.random()*4)] : '';
-                const name = `${p}-${idNum}${suffix ? ' ' + suffix : ''}`;
-                
-                const t = types[Math.floor(Math.random() * types.length)];
-                
-                // Random spherical coordinates across the entire sky
-                const ra = Math.random() * 24;
-                const dec = (Math.random() - 0.5) * 180;
-                const dist = Math.floor(Math.random() * 5000 + 10) + ' ly';
-
-                db.push({
-                    id: `proc_${i}`, name: name, class: t.class, type: t.type,
-                    dist: dist, mag: (Math.random() * 15).toFixed(1), temp: 'Unknown',
-                    ra: ra, dec: dec, radius: Math.random() * 5 + 2,
-                    shader: t.shader,
-                    baseColor: 0xffffff * Math.random(), darkColor: 0x333333 * Math.random(),
-                    color1: 0xffffff * Math.random(), color2: 0xffffff * Math.random(), color3: 0xffffff * Math.random(),
-                    desc: `Automatically mapped astronomical entity in sector ${Math.floor(ra)}x${Math.floor(Math.abs(dec))}. Data sourced from deep-sky surveys.`
-                });
-            }
-
-            return db;
+        // Function to show info
+        function showInfo(name, desc) {
+          infoTitle.setAttribute('value', name);
+          infoDesc.setAttribute('value', desc);
+          infoPanel.setAttribute('visible', true);
         }
 
-        const SKY_RADIUS = 1000;
-        let scene, camera, renderer;
-        let celestialObjects = [];
-        let uniformsArr = []; // To update time for shaders
-        
-        // App State
-        let state = {
-            gyro: false,
-            vr: false,
-            fov: 60,
-            targetFov: 60,
-            lon: 0, lat: 0,
-            pointerDown: false,
-            ptrX: 0, ptrY: 0,
-            targetObj: null
-        };
+        // Listen for clicks on any clickable object
+        scene.addEventListener('click', function (evt) {
+          const target = evt.target;
+          if (target.classList.contains('clickable')) {
+            const name = target.dataset.name || 'Unknown';
+            const desc = target.dataset.desc || 'No description available.';
+            showInfo(name, desc);
+          }
+        });
+
+        // Close button hides the panel
+        closeBtn.addEventListener('click', function () {
+          infoPanel.setAttribute('visible', false);
+        });
+      }
+    });
+
+    // Register the component on the scene
+    document.addEventListener('DOMContentLoaded', function () {
+      const scene = document.querySelector('a-scene');
+      scene.setAttribute('info-interaction', '');
+    });
+  </script>
 
-        function initThreeJS() {
-            const container = document.getElementById('canvas-container');
-            
-            // Build the massive catalog first
-            ASTRONOMY_DB = generateMassiveDatabase();
-            document.getElementById('catalog-count').textContent = `${ASTRONOMY_DB.length} Entities Indexed`;
-
-            scene = new THREE.Scene();
-            
-            camera = new THREE.PerspectiveCamera(state.fov, window.innerWidth / window.innerHeight, 0.1, 3000);
-            camera.position.set(0, 0, 0);
-
-            // High precision renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 1.2;
-            renderer.autoClear = false; // Important for VR Split Screen
-            container.appendChild(renderer.domElement);
-
-            // Ambient light for rocky planets
-            scene.add(new THREE.AmbientLight(0xffffff, 0.05));
-
-            generateRealisticStarfield();
-            generateMilkyWayBand();
-            buildCelestialBodies();
-
-            window.addEventListener('resize', onWindowResize);
-            initControls();
-            
-            // Start Loop
-            renderer.setAnimationLoop(animate);
-        }
-
-        function generateRealisticStarfield() {
-            const starCount = 12000; // Dense starfield
-            const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(starCount * 3);
-            const colors = new Float32Array(starCount * 3);
-            const sizes = new Float32Array(starCount);
-
-            // Real star spectral classes (O, B, A, F, G, K, M)
-            const spectralColors = [
-                new THREE.Color(0x9bb0ff), // O (Blue)
-                new THREE.Color(0xbbccff), // B (Blue-White)
-                new THREE.Color(0xffffff), // A (White)
-                new THREE.Color(0xfff4ea), // F (Yellow-White)
-                new THREE.Color(0xffd2a1), // G (Yellow - like Sun)
-                new THREE.Color(0xffa500), // K (Orange)
-                new THREE.Color(0xff4500)  // M (Red)
-            ];
-
-            for(let i=0; i<starCount; i++) {
-                // Random spherical distribution
-                const u = Math.random();
-                const v = Math.random();
-                const theta = u * 2.0 * Math.PI;
-                let phi = Math.acos(2.0 * v - 1.0);
-
-                // Concentrate 60% of stars along the galactic equator (Milky Way)
-                if (i < starCount * 0.6) {
-                    const spread = (Math.random() - 0.5) * 0.4; // Tight band
-                    phi = Math.PI / 2 + spread;
-                }
-
-                const r = SKY_RADIUS * 0.9 + Math.random() * 100;
-                let vec = new THREE.Vector3(
-                    r * Math.sin(phi) * Math.cos(theta),
-                    r * Math.cos(phi),
-                    r * Math.sin(phi) * Math.sin(theta)
-                );
-
-                // Tilt the galaxy plane slightly
-                vec.applyAxisAngle(new THREE.Vector3(1, 0, 0.3).normalize(), 1.0);
-
-                positions[i*3] = vec.x;
-                positions[i*3+1] = vec.y;
-                positions[i*3+2] = vec.z;
-
-                // Probability distribution of star types (M is most common, O is rare)
-                const rand = Math.random();
-                let colIdx = 6; // Default M
-                if (rand < 0.01) colIdx = 0;
-                else if (rand < 0.05) colIdx = 1;
-                else if (rand < 0.15) colIdx = 2;
-                else if (rand < 0.3) colIdx = 3;
-                else if (rand < 0.5) colIdx = 4;
-                else if (rand < 0.7) colIdx = 5;
-
-                colors[i*3] = spectralColors[colIdx].r;
-                colors[i*3+1] = spectralColors[colIdx].g;
-                colors[i*3+2] = spectralColors[colIdx].b;
-
-                // Size variation (few large bright stars, many tiny ones)
-                sizes[i] = Math.random() < 0.05 ? Math.random() * 3.0 + 1.5 : Math.random() * 1.5 + 0.2;
-            }
-
-            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geometry.setAttribute('customColor', new THREE.BufferAttribute(colors, 3));
-            geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-
-            const material = new THREE.ShaderMaterial({
-                vertexShader: starVertexShader,
-                fragmentShader: starFragmentShader,
-                transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-
-            scene.add(new THREE.Points(geometry, material));
-        }
-
-        function generateMilkyWayBand() {
-            // Since we can't load external images, we build large, highly transparent
-            // fuzzy particles and cluster them to create a volumetric cloud effect.
-            const cloudCount = 400;
-            const geo = new THREE.BufferGeometry();
-            const pos = new Float32Array(cloudCount * 3);
-            const sizes = new Float32Array(cloudCount);
-
-            for(let i=0; i<cloudCount; i++) {
-                const theta = Math.random() * Math.PI * 2;
-                // Keep very tight to equator
-                const spread = (Math.random() - 0.5) * 0.3;
-                const phi = Math.PI/2 + spread;
-                const r = SKY_RADIUS * 0.95;
-                
-                let vec = new THREE.Vector3(
-                    r * Math.sin(phi) * Math.cos(theta),
-                    r * Math.cos(phi),
-                    r * Math.sin(phi) * Math.sin(theta)
-                );
-                vec.applyAxisAngle(new THREE.Vector3(1, 0, 0.3).normalize(), 1.0);
-                
-                pos[i*3] = vec.x; pos[i*3+1] = vec.y; pos[i*3+2] = vec.z;
-                sizes[i] = 100 + Math.random() * 200; // Massive sizes
-            }
-            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-            geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-
-            // Soft hazy color
-            const mat = new THREE.ShaderMaterial({
-                uniforms: { color: { value: new THREE.Color(0x1a2b4c) } },
-                vertexShader: `
-                    attribute float size;
-                    void main() {
-                        vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
-                        gl_PointSize = size * (1000.0 / -mvPos.z);
-                        gl_Position = projectionMatrix * mvPos;
-                    }
-                `,
-                fragmentShader: `
-                    uniform vec3 color;
-                    void main() {
-                        float dist = length(gl_PointCoord.xy - vec2(0.5));
-                        if(dist > 0.5) discard;
-                        // Extremely soft edge
-                        float alpha = smoothstep(0.5, 0.0, dist) * 0.05; 
-                        gl_FragColor = vec4(color, alpha);
-                    }
-                `,
-                transparent: true,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-
-            scene.add(new THREE.Points(geo, mat));
-        }
-
-        function buildCelestialBodies() {
-            // To maintain 60FPS on mobile/VR, we only build complex 3D shader bodies for the primary objects (top 150)
-            // The remaining 2,350+ procedural catalog items exist for Search/Slewing and are mapped as background stars in generateRealisticStarfield.
-            
-            const renderLimit = Math.min(ASTRONOMY_DB.length, 150); 
-            
-            for(let i=0; i<renderLimit; i++) {
-                const item = ASTRONOMY_DB[i];
-                
-                const group = new THREE.Group();
-                // Convert RA/DEC to Cartesian
-                const phi = THREE.MathUtils.degToRad(90 - item.dec);
-                const theta = THREE.MathUtils.degToRad(item.ra * 15);
-                
-                group.position.set(
-                    SKY_RADIUS * 0.8 * Math.sin(phi) * Math.cos(theta),
-                    SKY_RADIUS * 0.8 * Math.cos(phi),
-                    SKY_RADIUS * 0.8 * Math.sin(phi) * Math.sin(theta)
-                );
-                group.lookAt(0,0,0);
-                group.userData = item;
-
-                let material;
-                const uniforms = { time: { value: 0.0 } };
-                uniformsArr.push(uniforms);
-
-                let geo;
-
-                if(item.shader === 'sun') {
-                    geo = new THREE.SphereGeometry(item.radius, 64, 64);
-                    uniforms.color1 = { value: new THREE.Color(item.color1) };
-                    uniforms.color2 = { value: new THREE.Color(item.color2) };
-                    material = new THREE.ShaderMaterial({
-                        uniforms: uniforms,
-                        vertexShader: sunVertexShader,
-                        fragmentShader: sunFragmentShader
-                    });
-                    
-                    // Add external glow (Corona)
-                    const glowGeo = new THREE.SphereGeometry(item.radius * 1.5, 32, 32);
-                    const glowMat = new THREE.ShaderMaterial({
-                        uniforms: { atmosphereColor: { value: new THREE.Color(item.color1) } },
-                        vertexShader: sunVertexShader, // reuse
-                        fragmentShader: atmosphereFragmentShader,
-                        transparent: true,
-                        blending: THREE.AdditiveBlending,
-                        side: THREE.BackSide,
-                        depthWrite: false
-                    });
-                    group.add(new THREE.Mesh(glowGeo, glowMat));
-
-                } else if(item.shader === 'gas') {
-                    uniforms.color1 = { value: new THREE.Color(item.color1) };
-                    uniforms.color2 = { value: new THREE.Color(item.color2) };
-                    uniforms.color3 = { value: new THREE.Color(item.color3) };
-                    material = new THREE.ShaderMaterial({
-                        uniforms: uniforms,
-                        vertexShader: sunVertexShader,
-                        fragmentShader: gasGiantFragmentShader
-                    });
-
-                    // Procedural Rings (Saturn)
-                    if(item.hasRings) {
-                        const ringGeo = new THREE.RingGeometry(item.radius * 1.4, item.radius * 2.5, 64);
-                        const ringMat = new THREE.MeshBasicMaterial({
-                            color: item.color1, side: THREE.DoubleSide, transparent: true, opacity: 0.7
-                        });
-                        const ring = new THREE.Mesh(ringGeo, ringMat);
-                        ring.rotation.x = Math.PI / 2.2; // Tilt
-                        group.add(ring);
-                    }
-
-                } else if(item.shader === 'rocky') {
-                    uniforms.baseColor = { value: new THREE.Color(item.baseColor) };
-                    uniforms.darkColor = { value: new THREE.Color(item.darkColor) };
-                    material = new THREE.ShaderMaterial({
-                        uniforms: uniforms,
-                        vertexShader: sunVertexShader,
-                        fragmentShader: rockyFragmentShader
-                    });
-
-                    // Atmospheric scattering halo (Mars/Earth)
-                    if(item.hasAtmosphere) {
-                        const atmGeo = new THREE.SphereGeometry(item.radius * 1.15, 32, 32);
-                        const atmMat = new THREE.ShaderMaterial({
-                            uniforms: { atmosphereColor: { value: new THREE.Color(item.atmColor) } },
-                            vertexShader: sunVertexShader,
-                            fragmentShader: atmosphereFragmentShader,
-                            transparent: true,
-                            blending: THREE.AdditiveBlending,
-                            side: THREE.BackSide,
-                            depthWrite: false
-                        });
-                        group.add(new THREE.Mesh(atmGeo, atmMat));
-                    }
-
-                } else if(item.shader === 'blackhole') {
-                    // Black Hole specific generation
-                    material = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Pitch black core
-                    
-                    // Accretion disk using a glowing ring
-                    const diskGeo = new THREE.RingGeometry(item.radius * 1.2, item.radius * 3.0, 64);
-                    const diskMat = new THREE.MeshBasicMaterial({
-                        color: item.color1, side: THREE.DoubleSide, transparent: true, opacity: 0.8,
-                        blending: THREE.AdditiveBlending
-                    });
-                    const disk = new THREE.Mesh(diskGeo, diskMat);
-                    disk.rotation.x = 1.2;
-                    group.add(disk);
-                    
-                } else if(item.shader === 'galaxy') {
-                    // Flat plane for galaxies, always facing camera
-                    geo = new THREE.PlaneGeometry(item.radius * 3, item.radius * 3);
-                    uniforms.coreColor = { value: new THREE.Color(item.color1) };
-                    uniforms.armColor = { value: new THREE.Color(item.color2) };
-                    material = new THREE.ShaderMaterial({
-                        uniforms: uniforms,
-                        vertexShader: sunVertexShader, // reuse basic pass-through
-                        fragmentShader: galaxyFragmentShader,
-                        transparent: true,
-                        blending: THREE.AdditiveBlending,
-                        depthWrite: false,
-                        side: THREE.DoubleSide
-                    });
-
-                } else if(item.shader === 'nebula') {
-                    geo = new THREE.PlaneGeometry(item.radius * 2.5, item.radius * 2.5);
-                    uniforms.color1 = { value: new THREE.Color(item.color1) };
-                    uniforms.color2 = { value: new THREE.Color(item.color2) };
-                    material = new THREE.ShaderMaterial({
-                        uniforms: uniforms,
-                        vertexShader: sunVertexShader,
-                        fragmentShader: nebulaFragmentShader,
-                        transparent: true,
-                        blending: THREE.AdditiveBlending,
-                        depthWrite: false,
-                        side: THREE.DoubleSide
-                    });
-                }
-
-                if(geo && material) {
-                    const mesh = new THREE.Mesh(geo, material);
-                    
-                    // Billboard effect for 2D galaxy/nebula planes
-                    if(item.shader === 'galaxy' || item.shader === 'nebula') {
-                        mesh.lookAt(0,0,0);
-                    }
-                    
-                    group.add(mesh);
-                }
-                
-                scene.add(group);
-                celestialObjects.push(group);
-            }
-            
-            populateCatalogUI();
-        }
-
-        function initControls() {
-            const dom = renderer.domElement;
-            
-            // Mouse & Touch Drag
-            dom.addEventListener('pointerdown', e => {
-                if(state.gyro) return;
-                state.pointerDown = true;
-                state.ptrX = e.clientX;
-                state.ptrY = e.clientY;
-            });
-
-            window.addEventListener('pointermove', e => {
-                if(!state.pointerDown || state.gyro) return;
-                const speed = state.fov / 400; // Slower pan when zoomed in
-                state.lon += (state.ptrX - e.clientX) * speed;
-                state.lat += (e.clientY - state.ptrY) * speed;
-                state.lat = Math.max(-89, Math.min(89, state.lat));
-                state.ptrX = e.clientX;
-                state.ptrY = e.clientY;
-            });
-
-            window.addEventListener('pointerup', () => state.pointerDown = false);
-            
-            // Mouse Wheel Zoom
-            dom.addEventListener('wheel', e => {
-                state.targetFov = THREE.MathUtils.clamp(state.targetFov + e.deltaY * 0.05, 10, 90);
-            });
-
-            // UI Buttons
-            document.getElementById('btn-gyro').addEventListener('click', toggleGyro);
-            document.getElementById('btn-vr').addEventListener('click', toggleVR);
-            
-            document.getElementById('btn-catalog').addEventListener('click', () => {
-                document.getElementById('catalog-drawer').classList.remove('translate-x-full');
-            });
-            document.getElementById('btn-close-catalog').addEventListener('click', () => {
-                document.getElementById('catalog-drawer').classList.add('translate-x-full');
-            });
-            
-            // Search Input filtering
-            document.getElementById('catalog-search').addEventListener('input', (e) => {
-                populateCatalogUI(e.target.value.toLowerCase());
-            });
-
-            document.getElementById('btn-zoom').addEventListener('click', () => {
-                state.targetFov = state.targetFov < 40 ? 60 : 15;
-            });
-        }
-
-        let deviceEuler = new THREE.Euler();
-        let q0 = new THREE.Quaternion();
-        let q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
-        let zee = new THREE.Vector3(0, 0, 1);
-        let orientationAngles = { alpha: 0, beta: 0, gamma: 0, orient: 0 };
-
-        function onDeviceOrientation(e) {
-            if(e.alpha === null) return;
-            orientationAngles.alpha = e.alpha;
-            orientationAngles.beta = e.beta;
-            orientationAngles.gamma = e.gamma;
-        }
-
-        async function toggleGyro() {
-            if(!state.gyro) {
-                if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    try {
-                        const perm = await DeviceOrientationEvent.requestPermission();
-                        if(perm !== 'granted') return alert('Gyroscope permission denied.');
-                    } catch(err) { console.error(err); }
-                }
-                window.addEventListener('deviceorientation', onDeviceOrientation);
-                orientationAngles.orient = window.orientation || 0;
-                window.addEventListener('orientationchange', () => orientationAngles.orient = window.orientation || 0);
-                
-                state.gyro = true;
-                document.getElementById('btn-gyro').classList.add('active');
-            } else {
-                window.removeEventListener('deviceorientation', onDeviceOrientation);
-                state.gyro = false;
-                document.getElementById('btn-gyro').classList.remove('active');
-            }
-        }
-
-        function toggleVR() {
-            state.vr = !state.vr;
-            document.getElementById('btn-vr').classList.toggle('active');
-            document.getElementById('vr-divider').style.display = state.vr ? 'block' : 'none';
-            document.getElementById('vr-eye-left').style.display = state.vr ? 'block' : 'none';
-            document.getElementById('vr-eye-right').style.display = state.vr ? 'block' : 'none';
-            document.getElementById('center-reticle').style.display = state.vr ? 'none' : 'flex';
-            
-            // Fullscreen attempt for mobile VR
-            if(state.vr && document.documentElement.requestFullscreen) {
-                document.documentElement.requestFullscreen().catch(()=>{});
-            }
-        }
-
-        function updateTelemetryAndTarget() {
-            let camDir = new THREE.Vector3();
-            camera.getWorldDirection(camDir);
-
-            // RA / DEC Math
-            let decRad = Math.asin(THREE.MathUtils.clamp(camDir.y, -1, 1));
-            let decDeg = THREE.MathUtils.radToDeg(decRad);
-            let thetaRad = Math.atan2(camDir.z, -camDir.x);
-            if(thetaRad < 0) thetaRad += Math.PI * 2;
-            let raHours = THREE.MathUtils.radToDeg(thetaRad) / 15;
-            
-            document.getElementById('tel-ra').textContent = `RA: ${Math.floor(raHours)}h ${Math.floor((raHours % 1)*60)}m`;
-            document.getElementById('tel-dec').textContent = `DEC: ${decDeg>0?'+':''}${decDeg.toFixed(1)}°`;
-            document.getElementById('tel-fov').textContent = `FOV: ${Math.round(state.fov)}°`;
-
-            // Scanner Detection (Angles)
-            let closest = null;
-            let minAngle = Infinity;
-            const threshold = THREE.MathUtils.degToRad(state.fov * 0.1); // Lock threshold scales with zoom
-
-            celestialObjects.forEach(obj => {
-                let dirToObj = obj.position.clone().normalize();
-                let angle = camDir.angleTo(dirToObj);
-                if(angle < threshold && angle < minAngle) {
-                    minAngle = angle;
-                    closest = obj.userData;
-                }
-            });
-
-            // Update UI based on Lock
-            const ring = document.getElementById('main-reticle-svg');
-            const label = document.getElementById('lock-label');
-            const card = document.getElementById('inspector-card');
-
-            if(closest && closest !== state.targetObj) {
-                state.targetObj = closest;
-                ring.classList.add('reticle-locked');
-                label.style.opacity = '1';
-                card.style.opacity = '1';
-                card.style.transform = 'translateY(0)';
-                
-                document.getElementById('ins-name').textContent = closest.name;
-                document.getElementById('ins-type').textContent = closest.type;
-                document.getElementById('ins-class').textContent = closest.class;
-                document.getElementById('ins-desc').textContent = closest.desc;
-                document.getElementById('ins-dist').textContent = closest.dist;
-                document.getElementById('ins-mag').textContent = closest.mag;
-                document.getElementById('ins-temp').textContent = closest.temp;
-            } else if (!closest && state.targetObj) {
-                state.targetObj = null;
-                ring.classList.remove('reticle-locked');
-                label.style.opacity = '0';
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-            }
-        }
-
-        function populateCatalogUI(filter = '') {
-            const list = document.getElementById('catalog-list');
-            list.innerHTML = ''; // Clear current
-            
-            // Filter and limit to 100 items for DOM performance
-            const filteredDB = ASTRONOMY_DB.filter(item => 
-                item.name.toLowerCase().includes(filter) || 
-                item.type.toLowerCase().includes(filter) ||
-                item.class.toLowerCase().includes(filter)
-            ).slice(0, 100);
-
-            if(filteredDB.length === 0) {
-                list.innerHTML = '<div class="text-center text-slate-500 text-xs py-4 font-mono-tech">No entities found in databanks.</div>';
-                return;
-            }
-
-            filteredDB.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'p-3 bg-slate-900/40 border border-cyan-900/30 hover:border-cyan-500/50 hover:bg-cyan-900/20 rounded-xl cursor-pointer transition-all duration-200 group';
-                
-                // Color code the badge based on type
-                let badgeColor = 'bg-slate-800 text-slate-300 border-slate-700';
-                if(item.type === 'STAR') badgeColor = 'bg-amber-900/30 text-amber-300 border-amber-700/50';
-                if(item.type === 'PLANET') badgeColor = 'bg-blue-900/30 text-blue-300 border-blue-700/50';
-                if(item.type === 'BLACK HOLE') badgeColor = 'bg-purple-900/30 text-purple-300 border-purple-700/50';
-                if(item.type === 'GALAXY' || item.type === 'NEBULA') badgeColor = 'bg-emerald-900/30 text-emerald-300 border-emerald-700/50';
-
-                div.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <span class="font-display font-bold text-sm text-white group-hover:text-cyan-300 transition-colors">${item.name}</span>
-                            <div class="text-[10px] font-mono-tech text-slate-400 mt-1">${item.class} <span class="text-slate-600 px-1">•</span> ${item.dist}</div>
-                        </div>
-                        <span class="text-[9px] font-mono-tech px-2 py-0.5 rounded-md ${badgeColor} border">${item.type}</span>
-                    </div>
-                `;
-                div.onclick = () => {
-                    // Warp Camera
-                    state.lon = item.ra * 15 - 180;
-                    state.lat = item.dec;
-                    
-                    // If GYRO is on, disable it to allow warp
-                    if(state.gyro) toggleGyro();
-                    
-                    document.getElementById('catalog-drawer').classList.add('translate-x-full');
-                };
-                list.appendChild(div);
-            });
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        const clock = new THREE.Clock();
-
-        function animate() {
-            const delta = clock.getDelta();
-            const time = clock.getElapsedTime();
-
-            // Update procedural shader times
-            uniformsArr.forEach(u => u.time.value = time);
-
-            // Rotate planets slowly, keep flat planes (galaxies) facing center
-            celestialObjects.forEach(obj => {
-                if(obj.userData.shader !== 'galaxy' && obj.userData.shader !== 'nebula') {
-                    obj.rotation.y += delta * 0.05; 
-                }
-            });
-
-            // Smooth FOV zoom
-            if(Math.abs(state.fov - state.targetFov) > 0.1) {
-                state.fov += (state.targetFov - state.fov) * 0.1;
-                camera.fov = state.fov;
-                camera.updateProjectionMatrix();
-            }
-
-            // Camera calculations
-            if(state.gyro) {
-                let alpha = THREE.MathUtils.degToRad(orientationAngles.alpha);
-                let beta = THREE.MathUtils.degToRad(orientationAngles.beta);
-                let gamma = THREE.MathUtils.degToRad(orientationAngles.gamma);
-                let orient = THREE.MathUtils.degToRad(orientationAngles.orient);
-                
-                deviceEuler.set(beta, alpha, -gamma, 'YXZ');
-                camera.quaternion.setFromEuler(deviceEuler);
-                camera.quaternion.multiply(q1);
-                camera.quaternion.multiply(q0.setFromAxisAngle(zee, -orient));
-            } else {
-                let phi = THREE.MathUtils.degToRad(90 - state.lat);
-                let theta = THREE.MathUtils.degToRad(state.lon);
-                camera.lookAt(
-                    100 * Math.sin(phi) * Math.cos(theta),
-                    100 * Math.cos(phi),
-                    100 * Math.sin(phi) * Math.sin(theta)
-                );
-            }
-
-            updateTelemetryAndTarget();
-
-            // VR Stereoscopic Split or Standard render
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-
-            renderer.clear();
-
-            if (state.vr) {
-                renderer.setScissorTest(true);
-                // Left Eye
-                renderer.setViewport(0, 0, w/2, h);
-                renderer.setScissor(0, 0, w/2, h);
-                camera.aspect = (w/2) / h;
-                camera.updateProjectionMatrix();
-                renderer.render(scene, camera);
-                // Right Eye
-                renderer.setViewport(w/2, 0, w/2, h);
-                renderer.setScissor(w/2, 0, w/2, h);
-                renderer.render(scene, camera);
-                renderer.setScissorTest(false);
-            } else {
-                renderer.setViewport(0, 0, w, h);
-                camera.aspect = w / h;
-                camera.updateProjectionMatrix();
-                renderer.render(scene, camera);
-            }
-        }
-
-        // Initialize application
-        window.onload = initThreeJS;
-    </script>
 </body>
 </html>
