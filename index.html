@@ -3,30 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AETHER // 3D Gyroscope & VR Celestial Sky Map</title>
+    <title>AETHER // 3D Gyroscope & VR Space Observatory</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Three.js r128 -->
+    <!-- Three.js Core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- FontAwesome for crisp astronomy icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for procedural cosmic audio & UI telemetry sounds -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --hud-cyan: #00f3ff;
-            --hud-amber: #ffb800;
-            --hud-purple: #b829ff;
-            --hud-bg: rgba(6, 11, 25, 0.78);
+            --hud-cyan: #00f0ff;
+            --hud-blue: #3b82f6;
+            --hud-purple: #a855f7;
+            --hud-amber: #f59e0b;
         }
-
         * {
             user-select: none;
             -webkit-user-select: none;
             box-sizing: border-box;
         }
-
         body, html {
             margin: 0;
             padding: 0;
@@ -35,18 +35,14 @@
             overflow: hidden;
             background-color: #02040a;
             font-family: 'Inter', sans-serif;
-            color: #e2e8f0;
-            touch-action: none;
+            color: #f8fafc;
         }
-
-        .font-orbitron {
-            font-family: 'Orbitron', sans-serif;
+        .font-display {
+            font-family: 'Space Grotesk', sans-serif;
         }
-
         .font-mono-tech {
-            font-family: 'Space Mono', monospace;
+            font-family: 'JetBrains Mono', monospace;
         }
-
         #canvas-container {
             position: absolute;
             inset: 0;
@@ -54,80 +50,73 @@
             height: 100%;
             z-index: 1;
         }
-
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
         /* Glassmorphic HUD panels */
         .hud-panel {
-            background: var(--hud-bg);
+            background: rgba(8, 14, 28, 0.72);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
-            border: 1px solid rgba(0, 243, 255, 0.22);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), inset 0 0 15px rgba(0, 243, 255, 0.06);
+            border: 1px solid rgba(56, 189, 248, 0.22);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(56, 189, 248, 0.06);
         }
-
-        .hud-btn {
-            background: rgba(10, 20, 42, 0.75);
-            border: 1px solid rgba(0, 243, 255, 0.3);
-            color: #cbd5e1;
+        .hud-button {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.25);
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
-
-        .hud-btn:hover {
-            border-color: var(--hud-cyan);
-            color: #ffffff;
-            box-shadow: 0 0 14px rgba(0, 243, 255, 0.35);
-            transform: translateY(-1px);
+        .hud-button:hover, .hud-button.active {
+            border-color: #38bdf8;
+            background: rgba(14, 116, 144, 0.35);
+            box-shadow: 0 0 18px rgba(56, 189, 248, 0.35);
+            color: #e0f2fe;
         }
-
-        .hud-btn.active {
-            background: rgba(0, 243, 255, 0.18);
-            border-color: var(--hud-cyan);
-            color: var(--hud-cyan);
-            box-shadow: 0 0 18px rgba(0, 243, 255, 0.45);
-        }
-
         /* Reticle animations */
         @keyframes pulse-ring {
-            0% { transform: scale(0.94); opacity: 0.75; }
+            0% { transform: scale(0.94); opacity: 0.7; }
             50% { transform: scale(1.06); opacity: 1; }
-            100% { transform: scale(0.94); opacity: 0.75; }
+            100% { transform: scale(0.94); opacity: 0.7; }
         }
-
         @keyframes spin-slow {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        @keyframes spin-reverse {
-            0% { transform: rotate(360deg); }
-            100% { transform: rotate(0deg); }
+        .reticle-ring {
+            animation: pulse-ring 2.8s infinite ease-in-out;
         }
-
-        .reticle-outer {
-            animation: spin-slow 24s linear infinite;
+        .reticle-spin {
+            animation: spin-slow 18s infinite linear;
         }
-
-        .reticle-inner {
-            animation: spin-reverse 14s linear infinite;
-        }
-
-        .reticle-locked .reticle-outer {
-            animation-duration: 6s;
-            stroke: var(--hud-amber);
-        }
-
-        /* Scrollbar styling for catalog drawer */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 5px;
             height: 5px;
         }
         ::-webkit-scrollbar-track {
-            background: rgba(6, 11, 25, 0.4);
+            background: rgba(15, 23, 42, 0.4);
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(0, 243, 255, 0.35);
+            background: rgba(56, 189, 248, 0.4);
             border-radius: 9999px;
         }
-
+        /* Floating 2D object labels */
+        .sky-label {
+            position: absolute;
+            transform: translate(-50%, -140%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            white-space: nowrap;
+        }
+        .sky-label:hover {
+            transform: translate(-50%, -145%) scale(1.08);
+            z-index: 30;
+        }
         /* Stereoscopic VR Split Screen Divider */
         #vr-divider {
             display: none;
@@ -135,1925 +124,184 @@
             top: 0;
             bottom: 0;
             left: 50%;
-            width: 3px;
-            transform: translateX(-50%);
-            background: linear-gradient(to bottom, transparent, rgba(0, 243, 255, 0.6), transparent);
-            z-index: 40;
+            width: 2px;
+            background: rgba(56, 189, 248, 0.35);
+            z-index: 45;
             pointer-events: none;
         }
-
-        .scanline-overlay {
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0, 243, 255, 0.02) 50%,
-                rgba(0, 243, 255, 0.02)
-            );
-            background-size: 100% 4px;
+        .vr-eye-reticle {
+            display: none;
+            position: fixed;
+            top: 50%;
+            width: 28px;
+            height: 28px;
+            transform: translate(-50%, -50%);
+            border: 1.5px solid rgba(56, 189, 248, 0.75);
+            border-radius: 50%;
             pointer-events: none;
+            z-index: 45;
+        }
+        .vr-eye-reticle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: #38bdf8;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
-<body class="relative select-none overflow-hidden">
+<body>
 
-    <!-- WebGL 3D Sky Container -->
+    <!-- 3D WebGL Canvas Container -->
     <div id="canvas-container"></div>
 
-    <!-- Subtle Futuristic Scanline Overlay -->
-    <div class="fixed inset-0 scanline-overlay z-10"></div>
+    <!-- Dynamic Floating Sky Labels Container -->
+    <div id="labels-container" class="fixed inset-0 pointer-events-none z-10 overflow-hidden"></div>
 
-    <!-- Stereoscopic VR Mode Split Line & Dual Reticles -->
-    <div id="vr-divider">
-        <div class="absolute top-1/2 -left-16 -translate-y-1/2 w-8 h-8 border border-cyan-400/60 rounded-full flex items-center justify-center">
-            <div class="w-1 h-1 bg-cyan-400 rounded-full"></div>
-        </div>
-        <div class="absolute top-1/2 left-8 -translate-y-1/2 w-8 h-8 border border-cyan-400/60 rounded-full flex items-center justify-center">
-            <div class="w-1 h-1 bg-cyan-400 rounded-full"></div>
-        </div>
+    <!-- Stereoscopic VR Overlay Helpers -->
+    <div id="vr-divider"></div>
+    <div id="vr-reticle-left" class="vr-eye-reticle" style="left: 25%;"></div>
+    <div id="vr-reticle-right" class="vr-eye-reticle" style="left: 75%;"></div>
+    <!-- VR Stereo Floating Toast -->
+    <div id="vr-toast" class="hidden fixed top-6 left-1/2 -translate-x-1/2 z-50 hud-panel px-4 py-2 rounded-full text-xs font-mono-tech text-cyan-300 flex items-center gap-3">
+        <span>VR CARDBOARD MODE ACTIVE</span>
+        <button id="exit-vr-btn" class="px-2.5 py-0.5 bg-cyan-500/20 border border-cyan-400/50 rounded-full text-white hover:bg-cyan-500/40 pointer-events-auto">Exit VR</button>
     </div>
 
-    <!-- Central Scanner Reticle (Standard Fullscreen Mode) -->
+    <!-- Central Scanner Reticle (Standard Single View) -->
     <div id="center-reticle" class="fixed inset-0 pointer-events-none z-20 flex items-center justify-center">
-        <div class="relative w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center">
-            <!-- SVG Animated Sci-Fi Scanner -->
-            <svg id="reticle-svg" class="w-full h-full transition-transform duration-300" viewBox="0 0 200 200">
-                <!-- Outer Compass Ring -->
-                <circle class="reticle-outer origin-center" cx="100" cy="100" r="82" fill="none" stroke="rgba(0, 243, 255, 0.35)" stroke-width="1.2" stroke-dasharray="14 8 4 8" />
-                <!-- Inner Target Brackets -->
-                <circle class="reticle-inner origin-center" cx="100" cy="100" r="54" fill="none" stroke="rgba(0, 243, 255, 0.55)" stroke-width="1.5" stroke-dasharray="35 55" />
-                <!-- Corner Crosshairs -->
-                <path d="M 100 10 L 100 24 M 100 176 L 100 190 M 10 100 L 24 100 M 176 100 L 190 100" stroke="rgba(0, 243, 255, 0.6)" stroke-width="1.5" />
-                <!-- Center Precision Dot -->
-                <circle id="reticle-center-dot" cx="100" cy="100" r="3" fill="#00f3ff" />
+        <div class="relative flex items-center justify-center">
+            <!-- Outer Rotating Tech Ring -->
+            <svg class="w-28 h-28 sm:w-36 sm:h-36 reticle-spin opacity-55" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="#38bdf8" stroke-width="1" stroke-dasharray="10 14 4 8" />
+                <circle cx="60" cy="60" r="46" fill="none" stroke="#818cf8" stroke-width="0.7" stroke-dasharray="4 18" />
             </svg>
-
-            <!-- Live Target Lock Badge right below Reticle -->
-            <div id="reticle-lock-badge" class="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-0.5 rounded-full text-[11px] font-mono-tech uppercase tracking-widest bg-cyan-950/90 border border-cyan-400/50 text-cyan-300 opacity-0 transition-all duration-200">
-                SCANNING SECTOR...
+            <!-- Inner Target Lock Ring -->
+            <div id="reticle-lock-ring" class="absolute w-14 h-14 sm:w-16 sm:h-16 rounded-full border border-cyan-400/60 reticle-ring flex items-center justify-center transition-all duration-300">
+                <div class="w-1.5 h-1.5 bg-cyan-300 rounded-full shadow-[0_0_8px_#00f0ff]"></div>
+                <!-- Corner Brackets -->
+                <div class="absolute -top-1 -left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-cyan-400"></div>
+                <div class="absolute -top-1 -right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-cyan-400"></div>
+                <div class="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-cyan-400"></div>
+                <div class="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-cyan-400"></div>
+            </div>
+            <!-- Live Lock-On Readout Pill underneath Reticle -->
+            <div id="reticle-readout" class="absolute top-20 sm:top-24 whitespace-nowrap px-3 py-1 rounded-full bg-slate-950/80 border border-cyan-500/30 text-[11px] font-mono-tech text-cyan-300 tracking-wider uppercase shadow-lg transition-all duration-200">
+                SCANNING DEEP SPACE...
             </div>
         </div>
     </div>
 
-    <!-- Dynamic 2D Projected Screen Markers Container -->
-    <div id="labels-container" class="fixed inset-0 pointer-events-none z-15 overflow-hidden"></div>
-
-    <!-- Top Telemetry & Compass Bar -->
-    <header class="fixed top-0 left-0 right-0 z-30 p-2.5 sm:p-4 pointer-events-none flex flex-col sm:flex-row items-center justify-between gap-2">
-        <!-- Left Brand & Sensor Status -->
-        <div class="hud-panel px-3.5 py-2 rounded-xl pointer-events-auto flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-            <div class="flex items-center gap-2.5">
-                <div class="w-8 h-8 rounded-lg bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-300 shadow-inner">
-                    <i class="fa-solid fa-satellite-dish animate-pulse"></i>
+    <!-- Main UI Overlay -->
+    <div id="main-ui" class="fixed inset-0 pointer-events-none z-30 flex flex-col justify-between p-3 sm:p-5">
+        
+        <!-- Top Bar: App Branding, Live Telemetry & Quick Controls -->
+        <div class="flex flex-wrap items-center justify-between gap-2 w-full">
+            <!-- Left: Brand & Live Coordinates -->
+            <div class="hud-panel px-3.5 py-2 rounded-2xl pointer-events-auto flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/30 to-purple-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-inner">
+                    <i class="ph-fill ph-planet text-xl"></i>
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <h1 class="font-orbitron font-bold text-xs sm:text-sm tracking-wider text-white">AETHER <span class="text-cyan-400">VR</span></h1>
-                        <span id="sensor-badge" class="text-[10px] font-mono-tech px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40">
-                            TOUCH / DRAG
-                        </span>
+                        <span class="font-display font-bold tracking-wider text-sm sm:text-base text-white">AETHER<span class="text-cyan-400">.VR</span></span>
+                        <span id="sensor-badge" class="text-[10px] font-mono-tech px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30">TOUCH / DRAG</span>
                     </div>
-                    <p class="text-[10px] text-slate-400 hidden sm:block">Deep Space Gyroscope & Telemetry Observatory</p>
-                </div>
-            </div>
-
-            <!-- Mobile Quick Search Trigger -->
-            <button id="mobile-search-btn" class="sm:hidden hud-btn px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5">
-                <i class="fa-solid fa-compass"></i>
-                <span>Find</span>
-            </button>
-        </div>
-
-        <!-- Center Live Celestial Coordinates & Compass Tape -->
-        <div class="hud-panel px-4 py-2 rounded-xl pointer-events-auto flex items-center gap-4 sm:gap-6 text-xs font-mono-tech w-full sm:w-auto justify-around">
-            <div class="flex flex-col items-center">
-                <span class="text-[9px] text-slate-400 uppercase tracking-wider">Azimuth / RA</span>
-                <span id="coord-ra" class="text-cyan-300 font-bold">00h 00m</span>
-            </div>
-            <div class="h-6 w-[1px] bg-cyan-500/20"></div>
-            <div class="flex flex-col items-center">
-                <span class="text-[9px] text-slate-400 uppercase tracking-wider">Altitude / DEC</span>
-                <span id="coord-dec" class="text-cyan-300 font-bold">+00.0°</span>
-            </div>
-            <div class="h-6 w-[1px] bg-cyan-500/20"></div>
-            <div class="flex flex-col items-center">
-                <span class="text-[9px] text-slate-400 uppercase tracking-wider">Heading</span>
-                <span id="coord-compass" class="text-amber-400 font-bold">N 0°</span>
-            </div>
-            <div class="h-6 w-[1px] bg-cyan-500/20 hidden md:block"></div>
-            <div class="hidden md:flex flex-col items-center">
-                <span class="text-[9px] text-slate-400 uppercase tracking-wider">FOV Zoom</span>
-                <span id="coord-fov" class="text-emerald-300 font-bold">65°</span>
-            </div>
-        </div>
-
-        <!-- Right Quick Catalog & Audio Controls -->
-        <div class="hidden sm:flex hud-panel px-2.5 py-1.5 rounded-xl pointer-events-auto items-center gap-2">
-            <button id="desktop-catalog-btn" class="hud-btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2" title="Search Celestial Objects">
-                <i class="fa-solid fa-magnifying-glass-location text-cyan-400"></i>
-                <span>Sky Catalog</span>
-            </button>
-            <button id="audio-toggle-btn" class="hud-btn w-8 h-8 rounded-lg flex items-center justify-center text-xs" title="Toggle Ambient Space Synth">
-                <i id="audio-icon" class="fa-solid fa-volume-xmark text-slate-400"></i>
-            </button>
-            <button id="help-modal-btn" class="hud-btn w-8 h-8 rounded-lg flex items-center justify-center text-xs" title="Launch Sensor & VR Calibration">
-                <i class="fa-solid fa-sliders text-cyan-400"></i>
-            </button>
-        </div>
-    </header>
-
-    <!-- Bottom-Left or Side Entity Telemetry Inspector Panel -->
-    <aside id="entity-inspector" class="fixed bottom-20 sm:bottom-6 left-2.5 right-2.5 sm:left-5 sm:right-auto sm:w-96 z-30 pointer-events-auto transition-all duration-300 transform translate-y-0 opacity-100">
-        <div class="hud-panel rounded-2xl p-4 sm:p-5 border-l-4 border-l-cyan-400 relative overflow-hidden">
-            <!-- Decorative background glow -->
-            <div id="inspector-glow" class="absolute -right-10 -top-10 w-32 h-32 rounded-full bg-cyan-500/10 blur-2xl pointer-events-none"></div>
-
-            <!-- Header row -->
-            <div class="flex items-start justify-between gap-2 mb-2">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span id="entity-type-badge" class="text-[10px] font-mono-tech uppercase tracking-widest px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                            STAR
-                        </span>
-                        <span id="entity-constellation" class="text-xs text-slate-400 font-mono-tech">
-                            Orion Sector
-                        </span>
-                    </div>
-                    <h2 id="entity-name" class="font-orbitron text-lg sm:text-xl font-bold text-white mt-1 tracking-wide">
-                        Point Reticle at Sky
-                    </h2>
-                </div>
-
-                <!-- Lock / Track Button -->
-                <div class="flex items-center gap-1.5">
-                    <button id="btn-narrate" class="hud-btn w-8 h-8 rounded-lg flex items-center justify-center text-xs" title="Read Telemetry Aloud">
-                        <i class="fa-solid fa-ear-listen"></i>
-                    </button>
-                    <button id="btn-zoom-target" class="hud-btn px-2.5 py-1.5 rounded-lg text-xs font-mono-tech flex items-center gap-1.5">
-                        <i class="fa-solid fa-crosshairs text-cyan-400"></i>
-                        <span id="zoom-btn-text">ZOOM</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Description body -->
-            <p id="entity-desc" class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-3.5 line-clamp-3 sm:line-clamp-none">
-                Rotate your mobile device using the gyroscope or drag the sky with your finger/mouse. Align any star, planet, black hole, or nebula inside the central scanner reticle to decode its astrophysics telemetry.
-            </p>
-
-            <!-- Scientific Telemetry Grid -->
-            <div class="grid grid-cols-3 gap-2 pt-3 border-t border-slate-700/60 text-center font-mono-tech">
-                <div class="bg-slate-900/60 rounded-lg p-2 border border-slate-800">
-                    <div class="text-[9px] text-slate-400 uppercase">Distance</div>
-                    <div id="entity-dist" class="text-xs sm:text-sm font-bold text-cyan-300 mt-0.5">--</div>
-                </div>
-                <div class="bg-slate-900/60 rounded-lg p-2 border border-slate-800">
-                    <div class="text-[9px] text-slate-400 uppercase">Magnitude / Mass</div>
-                    <div id="entity-mag" class="text-xs sm:text-sm font-bold text-amber-300 mt-0.5">--</div>
-                </div>
-                <div class="bg-slate-900/60 rounded-lg p-2 border border-slate-800">
-                    <div class="text-[9px] text-slate-400 uppercase">Temp / Class</div>
-                    <div id="entity-temp" class="text-xs sm:text-sm font-bold text-purple-300 mt-0.5">--</div>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <!-- Bottom Control Dock -->
-    <nav class="fixed bottom-3 left-1/2 -translate-x-1/2 sm:left-auto sm:right-5 sm:translate-x-0 z-30 pointer-events-auto w-[95%] sm:w-auto">
-        <div class="hud-panel px-2.5 py-2 rounded-2xl flex items-center justify-around sm:justify-end gap-1.5 sm:gap-2">
-            <!-- Gyroscope Toggle -->
-            <button id="btn-gyro" class="hud-btn px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2" title="Enable Mobile Gyroscope Orientation">
-                <i class="fa-solid fa-mobile-screen-button text-cyan-400"></i>
-                <span class="hidden md:inline">Gyroscope</span>
-                <span id="gyro-dot" class="w-2 h-2 rounded-full bg-slate-500"></span>
-            </button>
-
-            <!-- VR Stereoscopic Headset Split Toggle -->
-            <button id="btn-vr" class="hud-btn px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2" title="Toggle VR Headset Stereoscopic Split-Screen">
-                <i class="fa-solid fa-vr-cardboard text-purple-400"></i>
-                <span class="hidden md:inline">VR Mode</span>
-            </button>
-
-            <!-- Constellation Lines Toggle -->
-            <button id="btn-constellations" class="hud-btn active px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2" title="Toggle Constellation Lines">
-                <i class="fa-solid fa-share-nodes"></i>
-                <span class="hidden md:inline">Constellations</span>
-            </button>
-
-            <!-- Equatorial Celestial Grid Toggle -->
-            <button id="btn-grid" class="hud-btn active px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2" title="Toggle Celestial Sphere Grid">
-                <i class="fa-solid fa-globe"></i>
-                <span class="hidden md:inline">Grid</span>
-            </button>
-
-            <!-- Atmosphere / Horizon Ground Toggle -->
-            <button id="btn-horizon" class="hud-btn px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2" title="Toggle Horizon Reference">
-                <i class="fa-solid fa-mountain-sun"></i>
-                <span class="hidden md:inline">Horizon</span>
-            </button>
-
-            <!-- Telescope Zoom Slider (Desktop/Tablet) -->
-            <div class="hidden lg:flex items-center gap-2 pl-2 border-l border-slate-700">
-                <i class="fa-solid fa-magnifying-glass-plus text-xs text-cyan-400"></i>
-                <input id="fov-slider" type="range" min="20" max="85" value="65" class="w-20 accent-cyan-400 cursor-pointer h-1 bg-slate-700 rounded-lg">
-            </div>
-        </div>
-    </nav>
-
-    <!-- Slide-Over Celestial Catalog & Auto-Guide Drawer -->
-    <div id="catalog-drawer" class="fixed inset-y-0 right-0 w-full sm:w-96 z-40 hud-panel transform translate-x-full transition-transform duration-300 flex flex-col">
-        <div class="p-4 border-b border-cyan-500/20 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <i class="fa-solid fa-book-atlas text-cyan-400"></i>
-                <h3 class="font-orbitron font-bold text-sm tracking-wider uppercase text-white">Celestial Database</h3>
-            </div>
-            <button id="close-catalog-btn" class="hud-btn w-8 h-8 rounded-lg flex items-center justify-center">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-        </div>
-
-        <!-- Filter Tabs -->
-        <div class="p-3 border-b border-cyan-500/10 flex flex-col gap-2.5">
-            <div class="relative">
-                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
-                <input id="catalog-search" type="text" placeholder="Search stars, planets, black holes, nebulae..." class="w-full bg-slate-900/90 border border-slate-700 focus:border-cyan-400 rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none">
-            </div>
-            <div class="flex gap-1.5 overflow-x-auto pb-1 text-[11px] font-mono-tech">
-                <button data-filter="ALL" class="catalog-filter-btn hud-btn active px-2.5 py-1 rounded-lg whitespace-nowrap">All (26)</button>
-                <button data-filter="PLANET" class="catalog-filter-btn hud-btn px-2.5 py-1 rounded-lg whitespace-nowrap">Planets</button>
-                <button data-filter="STAR" class="catalog-filter-btn hud-btn px-2.5 py-1 rounded-lg whitespace-nowrap">Stars</button>
-                <button data-filter="BLACK HOLE" class="catalog-filter-btn hud-btn px-2.5 py-1 rounded-lg whitespace-nowrap">Black Holes</button>
-                <button data-filter="NEBULA" class="catalog-filter-btn hud-btn px-2.5 py-1 rounded-lg whitespace-nowrap">Nebulae & Galaxies</button>
-            </div>
-        </div>
-
-        <!-- Catalog Items List -->
-        <div id="catalog-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
-    </div>
-
-    <!-- Welcome & Gyroscope Permission Modal -->
-    <div id="welcome-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-        <div class="hud-panel max-w-lg w-full rounded-3xl p-6 sm:p-8 border border-cyan-400/40 shadow-2xl relative overflow-hidden">
-            <div class="absolute -top-24 -right-24 w-56 h-56 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-24 -left-24 w-56 h-56 bg-purple-500/20 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-cyan-300 text-xl shadow-lg">
-                    <i class="fa-solid fa-shuttle-space"></i>
-                </div>
-                <div>
-                    <span class="text-[10px] font-mono-tech uppercase tracking-widest text-cyan-400">Interactive Planetarium & VR</span>
-                    <h2 class="font-orbitron text-xl sm:text-2xl font-bold text-white">AETHER SKY EXPLORER</h2>
-                </div>
-            </div>
-
-            <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-5">
-                Experience a real-time 360° 3D celestial sphere populated with accurate stars, Solar System planets, deep-space nebulae, galaxies, and relativistic black holes.
-            </p>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 text-xs">
-                <div class="bg-slate-900/70 border border-slate-800 p-3.5 rounded-xl flex items-start gap-3">
-                    <i class="fa-solid fa-compass-drafting text-cyan-400 text-base mt-0.5"></i>
-                    <div>
-                        <h4 class="font-semibold text-white">Mobile Gyroscope</h4>
-                        <p class="text-slate-400 text-[11px] mt-0.5">Point and rotate your phone around the room to scan real sky coordinates.</p>
-                    </div>
-                </div>
-                <div class="bg-slate-900/70 border border-slate-800 p-3.5 rounded-xl flex items-start gap-3">
-                    <i class="fa-solid fa-vr-cardboard text-purple-400 text-base mt-0.5"></i>
-                    <div>
-                        <h4 class="font-semibold text-white">Stereoscopic VR</h4>
-                        <p class="text-slate-400 text-[11px] mt-0.5">Switch to dual-eye VR split screen for Google Cardboard or mobile VR headsets.</p>
+                    <div class="text-[11px] font-mono-tech text-slate-300 flex items-center gap-2 sm:gap-3 mt-0.5">
+                        <span id="telemetry-az">AZ: 000.0° N</span>
+                        <span class="text-slate-600">|</span>
+                        <span id="telemetry-alt">ALT: +00.0°</span>
+                        <span class="hidden md:inline text-slate-600">|</span>
+                        <span id="telemetry-ra" class="hidden md:inline text-cyan-300/90">RA: 00h 00m</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex flex-col sm:flex-row gap-3">
-                <button id="start-gyro-btn" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-orbitron font-bold text-xs sm:text-sm tracking-wider uppercase shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition">
-                    <i class="fa-solid fa-satellite"></i>
-                    <span>Launch with Gyroscope</span>
+            <!-- Center Compass Strip -->
+            <div class="hidden lg:flex hud-panel px-5 py-2 rounded-2xl items-center gap-4 pointer-events-auto">
+                <div class="text-xs font-mono-tech text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <i class="ph ph-compass text-cyan-400 text-base"></i> Heading
+                </div>
+                <div id="compass-strip" class="w-56 h-6 relative overflow-hidden bg-slate-950/70 rounded-lg border border-slate-800 flex items-center justify-center font-mono-tech text-xs">
+                    <div id="compass-tape" class=" whitespace-nowrap tracking-[0.65em] text-slate-300 transition-transform duration-75">
+                        N · NE · E · SE · S · SW · W · NW · N · NE · E
+                    </div>
+                    <div class="absolute inset-y-0 left-1/2 -translate-x-1/2 w-0.5 bg-cyan-400"></div>
+                </div>
+            </div>
+
+            <!-- Right: Action Buttons (Gyro, Search, VR, Audio) -->
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <!-- Gyroscope Toggle Button -->
+                <button id="btn-gyro" class="hud-button px-3 py-2 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-200" title="Enable Mobile Gyroscope Orientation">
+                    <i class="ph ph-device-mobile-camera text-cyan-400 text-lg"></i>
+                    <span class="hidden sm:inline">Gyro Sensor</span>
                 </button>
-                <button id="start-touch-btn" class="py-3 px-4 rounded-xl hud-btn font-orbitron font-semibold text-xs sm:text-sm tracking-wider uppercase flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-hand-pointer"></i>
-                    <span>Touch / Mouse Mode</span>
+
+                <!-- Object Catalog / Finder -->
+                <button id="btn-catalog" class="hud-button px-3 py-2 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-200" title="Search & Warp to Celestial Entities">
+                    <i class="ph ph-magnifying-glass text-cyan-400 text-lg"></i>
+                    <span class="hidden sm:inline">Find Sky Object</span>
+                </button>
+
+                <!-- Stereoscopic VR Mode -->
+                <button id="btn-vr" class="hud-button px-3 py-2 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-200" title="Enter Split-Screen VR Headset Mode">
+                    <i class="ph ph-goggles text-purple-400 text-lg"></i>
+                    <span class="hidden sm:inline">VR Mode</span>
+                </button>
+
+                <!-- Ambient Space Synth Audio -->
+                <button id="btn-audio" class="hud-button p-2 rounded-xl text-slate-300" title="Toggle Cosmic Ambient Sound">
+                    <i id="icon-audio" class="ph ph-speaker-slash text-lg"></i>
                 </button>
             </div>
-
-            <p id="sensor-status-note" class="text-[11px] text-center text-slate-400 mt-4 font-mono-tech">
-                Tip: On iOS/Android, HTTPS is required by browsers to grant Gyroscope access. Touch drag & pinch-zoom are always active!
-            </p>
         </div>
-    </div>
 
-    <!-- Notification Toast for Guidance -->
-    <div id="toast-banner" class="fixed top-20 left-1/2 -translate-x-1/2 z-40 pointer-events-none opacity-0 transition-opacity duration-300">
-        <div class="hud-panel px-4 py-2 rounded-full text-xs font-mono-tech text-cyan-300 border border-cyan-400/50 shadow-lg flex items-center gap-2">
-            <i class="fa-solid fa-circle-info"></i>
-            <span id="toast-message">Gyroscope Active</span>
-        </div>
-    </div>
-
-    <script>
-        /**
-         * ============================================================================
-         * ASTRONOMICAL CATALOG DATABASE
-         * Real Right Ascension (RA in hours 0-24) and Declination (DEC in degrees -90 to +90)
-         * Rich descriptions, distances, masses/magnitudes, and custom visual rendering types
-         * ============================================================================
-         */
-        const CELESTIAL_DATABASE = [
-            // --- SOLAR SYSTEM PLANETS & SUN/MOON ---
-            {
-                id: 'sol',
-                name: 'Sol (The Sun)',
-                type: 'STAR',
-                subtype: 'G2V Yellow Dwarf Star',
-                constellation: 'Solar System Center',
-                ra: 6.0, dec: 23.4,
-                distance: '8.3 Light-Minutes',
-                magnitude: '-26.74 mag',
-                temp: '5,778 K',
-                color: 0xffdd55,
-                radius: 26,
-                visualStyle: 'sun',
-                description: 'The gravitational heart of our Solar System. A nearly perfect sphere of hot plasma heated to incandescence by nuclear fusion reactions in its core, radiating energy mainly as visible light and infrared radiation.'
-            },
-            {
-                id: 'saturn',
-                name: 'Saturn',
-                type: 'PLANET',
-                subtype: 'Ringed Gas Giant',
-                constellation: 'Aquarius / Pisces Sector',
-                ra: 23.2, dec: -6.5,
-                distance: '1.4 Billion km',
-                magnitude: '+0.46 mag',
-                temp: '134 K (-139°C)',
-                color: 0xf4d58d,
-                radius: 18,
-                visualStyle: 'saturn',
-                description: 'The sixth planet from the Sun and the second-largest in our Solar System. Famous for its dazzling, complex system of icy rings composed of billions of particles ranging from micrometre-sized dust to house-sized boulders.'
-            },
-            {
-                id: 'jupiter',
-                name: 'Jupiter',
-                type: 'PLANET',
-                subtype: 'Gas Giant Planet',
-                constellation: 'Taurus Sector',
-                ra: 4.8, dec: 21.8,
-                distance: '715 Million km',
-                magnitude: '-2.70 mag',
-                temp: '165 K (-108°C)',
-                color: 0xe3a869,
-                radius: 21,
-                visualStyle: 'jupiter',
-                description: 'The largest planet in the Solar System—more than twice as massive as all the other planets combined. Its turbulent atmosphere features ammonia cloud bands and the iconic Great Red Spot, a giant anticyclonic storm larger than Earth.'
-            },
-            {
-                id: 'mars',
-                name: 'Mars',
-                type: 'PLANET',
-                subtype: 'Terrestrial Red Planet',
-                constellation: 'Gemini Sector',
-                ra: 7.4, dec: 24.1,
-                distance: '225 Million km',
-                magnitude: '-1.20 mag',
-                temp: '210 K (-63°C)',
-                color: 0xff5733,
-                radius: 13,
-                visualStyle: 'mars',
-                description: 'The fourth planet from the Sun, colored rusty red by iron oxide dust covering its surface. Home to Olympus Mons (the largest volcano in the Solar System) and Valles Marineris, one of the largest canyons.'
-            },
-            {
-                id: 'venus',
-                name: 'Venus',
-                type: 'PLANET',
-                subtype: 'Terrestrial Planet',
-                constellation: 'Virgo Sector',
-                ra: 13.5, dec: -8.2,
-                distance: '108 Million km',
-                magnitude: '-4.60 mag',
-                temp: '737 K (464°C)',
-                color: 0xfff3c4,
-                radius: 14,
-                visualStyle: 'venus',
-                description: 'Often called Earth’s twin in size, Venus is shrouded by thick clouds of sulfuric acid that trap heat in a runaway greenhouse effect, making it the hottest planet in our Solar System.'
-            },
-            {
-                id: 'neptune',
-                name: 'Neptune',
-                type: 'PLANET',
-                subtype: 'Ice Giant Planet',
-                constellation: 'Pisces Sector',
-                ra: 23.9, dec: -1.8,
-                distance: '4.5 Billion km',
-                magnitude: '+7.80 mag',
-                temp: '72 K (-201°C)',
-                color: 0x3b82f6,
-                radius: 14,
-                visualStyle: 'neptune',
-                description: 'The most distant major planet in our Solar System. Deep azure methane clouds and supersonic winds reaching 2,100 km/h sweep across this frigid ice giant.'
-            },
-
-            // --- BLACK HOLES & RELATIVISTIC OBJECTS ---
-            {
-                id: 'sgr_a',
-                name: 'Sagittarius A*',
-                type: 'BLACK HOLE',
-                subtype: 'Supermassive Black Hole',
-                constellation: 'Sagittarius (Galactic Center)',
-                ra: 17.76, dec: -29.0,
-                distance: '26,670 Light-Years',
-                magnitude: '4.15 Million M☉',
-                temp: 'Accretion ~10¹⁰ K',
-                color: 0xff7700,
-                radius: 26,
-                visualStyle: 'blackhole',
-                description: 'The supermassive black hole residing at the galactic center of the Milky Way. Directly imaged by the Event Horizon Telescope, its immense gravity warps spacetime and whips nearby stars like S2 around at relativistic speeds.'
-            },
-            {
-                id: 'cygnus_x1',
-                name: 'Cygnus X-1',
-                type: 'BLACK HOLE',
-                subtype: 'Stellar-Mass Black Hole X-Ray Binary',
-                constellation: 'Cygnus',
-                ra: 19.97, dec: 35.2,
-                distance: '7,200 Light-Years',
-                magnitude: '21.2 Solar Masses',
-                temp: 'X-Ray Disk 10⁷ K',
-                color: 0x00e5ff,
-                radius: 22,
-                visualStyle: 'blackhole_blue',
-                description: 'A famous galactic X-ray source and the first widely accepted black hole candidate in history. It locked in a tight orbit with a blue supergiant variable star (HDE 226868), stripping stellar wind into a blazing accretion disk.'
-            },
-            {
-                id: 'm87_bh',
-                name: 'M87* (Powehi)',
-                type: 'BLACK HOLE',
-                subtype: 'Ultramassive Black Hole & Relativistic Jet',
-                constellation: 'Virgo',
-                ra: 12.51, dec: 12.39,
-                distance: '53.5 Million ly',
-                magnitude: '6.5 Billion M☉',
-                temp: 'Relativistic Plasma',
-                color: 0xff4500,
-                radius: 24,
-                visualStyle: 'blackhole_jet',
-                description: 'The colossal black hole at the heart of elliptical galaxy Messier 87. First black hole ever directly photographed by humanity, launching a 5,000-light-year-long jet of subatomic particles traveling near the speed of light.'
-            },
-
-            // --- NEBULAE, GALAXIES & CLUSTERS ---
-            {
-                id: 'orion_nebula',
-                name: 'Orion Nebula (M42)',
-                type: 'NEBULA',
-                subtype: 'Diffuse Emission Stellar Nursery',
-                constellation: 'Orion',
-                ra: 5.59, dec: -5.39,
-                distance: '1,344 Light-Years',
-                magnitude: '+4.0 mag',
-                temp: '10,000 K Ionized Gas',
-                color: 0xe84393,
-                radius: 28,
-                visualStyle: 'nebula_pink',
-                description: 'One of the brightest nebulae in the night sky, visible to the naked eye south of Orion’s Belt. It is our closest massive star-forming factory, containing young protoplanetary disks and the intense Trapezium open cluster.'
-            },
-            {
-                id: 'crab_nebula',
-                name: 'Crab Nebula (M1)',
-                type: 'NEBULA',
-                subtype: 'Supernova Remnant & Pulsar Wind Nebula',
-                constellation: 'Taurus',
-                ra: 5.57, dec: 22.01,
-                distance: '6,500 Light-Years',
-                magnitude: '+8.4 mag',
-                temp: 'Pulsar 30 RPS',
-                color: 0x00ffd5,
-                radius: 24,
-                visualStyle: 'nebula_cyan',
-                description: 'The expanding shattered remnant of a brilliant supernova recorded by astronomers in 1054 AD. At its center spins the Crab Pulsar—a city-sized neutron star rotating 30 times every second.'
-            },
-            {
-                id: 'andromeda',
-                name: 'Andromeda Galaxy (M31)',
-                type: 'NEBULA',
-                subtype: 'Barred Spiral Galaxy',
-                constellation: 'Andromeda',
-                ra: 0.71, dec: 41.26,
-                distance: '2.53 Million ly',
-                magnitude: '+3.44 mag',
-                temp: '~1 Trillion Stars',
-                color: 0xa29bfe,
-                radius: 32,
-                visualStyle: 'galaxy',
-                description: 'The nearest major galaxy to the Milky Way and the most distant object easily visible to the unaided human eye. Approaching us at 110 km/s, it will merge with the Milky Way in roughly 4.5 billion years.'
-            },
-            {
-                id: 'pillars_creation',
-                name: 'Eagle Nebula (M16)',
-                type: 'NEBULA',
-                subtype: 'H II Emission Region (Pillars of Creation)',
-                constellation: 'Serpens',
-                ra: 18.31, dec: -13.79,
-                distance: '5,700 Light-Years',
-                magnitude: '+6.0 mag',
-                temp: '8,000 K Dust Towers',
-                color: 0xfdcb6e,
-                radius: 25,
-                visualStyle: 'nebula_gold',
-                description: 'Home to the iconic "Pillars of Creation"—towering columns of interstellar hydrogen gas and dust several light-years tall where newborn stars are actively condensing out of shadowed molecular clouds.'
-            },
-            {
-                id: 'pleiades',
-                name: 'Pleiades (M45)',
-                type: 'NEBULA',
-                subtype: 'Open Star Cluster & Reflection Nebula',
-                constellation: 'Taurus',
-                ra: 3.79, dec: 24.11,
-                distance: '444 Light-Years',
-                magnitude: '+1.6 mag',
-                temp: 'B-Type Hot Blue',
-                color: 0x38bdf8,
-                radius: 24,
-                visualStyle: 'cluster_blue',
-                description: 'Known as the Seven Sisters, the Pleiades is an open cluster dominated by hot, luminous blue stars that formed within the last 100 million years, swathed in wispy blue reflection dust.'
-            },
-
-            // --- MAJOR BRIGHT NAVIGATION STARS ---
-            {
-                id: 'sirius',
-                name: 'Sirius (Alpha Canis Majoris)',
-                type: 'STAR',
-                subtype: 'Binary Star System (A0mA1 Va + White Dwarf)',
-                constellation: 'Canis Major',
-                ra: 6.75, dec: -16.71,
-                distance: '8.6 Light-Years',
-                magnitude: '-1.46 mag',
-                temp: '9,940 K',
-                color: 0xbbeeff,
-                radius: 15,
-                visualStyle: 'star',
-                description: 'The brightest star in Earth’s night sky. Almost twice as bright as Canopus, Sirius A is accompanied by a faint, ultra-dense white dwarf companion star (Sirius B) that packs the mass of the Sun into the volume of Earth.'
-            },
-            {
-                id: 'betelgeuse',
-                name: 'Betelgeuse (Alpha Orionis)',
-                type: 'STAR',
-                subtype: 'Red Supergiant Star (M1-2)',
-                constellation: 'Orion',
-                ra: 5.92, dec: 7.41,
-                distance: '642 Light-Years',
-                magnitude: '+0.42 mag',
-                temp: '3,600 K',
-                color: 0xff6b4a,
-                radius: 16,
-                visualStyle: 'star_giant',
-                description: 'A colossal, semi-regular variable red supergiant marking the right shoulder of Orion. If placed at the center of our Solar System, its photosphere would engulf Mercury, Venus, Earth, and Mars. Expected to explode as a supernova within 100,000 years.'
-            },
-            {
-                id: 'rigel',
-                name: 'Rigel (Beta Orionis)',
-                type: 'STAR',
-                subtype: 'Blue Supergiant Star (B8 Ia)',
-                constellation: 'Orion',
-                ra: 5.24, dec: -8.20,
-                distance: '863 Light-Years',
-                magnitude: '+0.13 mag',
-                temp: '12,100 K',
-                color: 0x80d8ff,
-                radius: 15,
-                visualStyle: 'star',
-                description: 'The brightest star in Orion, marking the hunter’s left knee. Rigel shines with roughly 120,000 times the luminosity of our Sun and illuminates the nearby Witch Head Nebula.'
-            },
-            {
-                id: 'polaris',
-                name: 'Polaris (North Star)',
-                type: 'STAR',
-                subtype: 'Yellow Supergiant Cepheid Variable',
-                constellation: 'Ursa Minor',
-                ra: 2.53, dec: 89.26,
-                distance: '433 Light-Years',
-                magnitude: '+1.98 mag',
-                temp: '6,015 K',
-                color: 0xfff4cc,
-                radius: 14,
-                visualStyle: 'star_pole',
-                description: 'Positioned within 1 degree of the North Celestial Pole, Polaris remains nearly motionless in the northern sky while all other stars appear to rotate around it, serving as humanity’s primary celestial compass anchor.'
-            },
-            {
-                id: 'vega',
-                name: 'Vega (Alpha Lyrae)',
-                type: 'STAR',
-                subtype: 'Blue-White Main Sequence Star (A0V)',
-                constellation: 'Lyra',
-                ra: 18.61, dec: 38.78,
-                distance: '25.0 Light-Years',
-                magnitude: '+0.03 mag',
-                temp: '9,602 K',
-                color: 0xc8e6ff,
-                radius: 14,
-                visualStyle: 'star',
-                description: 'One of the vertices of the Summer Triangle and historically the baseline zero-point for the astronomical apparent magnitude scale. Vega spins so rapidly (236 km/s at equator) that it bulges outward.'
-            },
-            {
-                id: 'antares',
-                name: 'Antares (Alpha Scorpii)',
-                type: 'STAR',
-                subtype: 'Red Supergiant Binary (M1.5Iab)',
-                constellation: 'Scorpius',
-                ra: 16.49, dec: -26.43,
-                distance: '550 Light-Years',
-                magnitude: '+1.06 mag',
-                temp: '3,660 K',
-                color: 0xff4d2e,
-                radius: 15,
-                visualStyle: 'star_giant',
-                description: 'Known as the Heart of the Scorpion, Antares means "Rival of Mars" due to its distinct ruby-orange hue. It is an immense dying red supergiant around 680 times the diameter of the Sun.'
-            },
-            {
-                id: 'aldebaran',
-                name: 'Aldebaran (Alpha Tauri)',
-                type: 'STAR',
-                subtype: 'Red Giant Star (K5+ III)',
-                constellation: 'Taurus',
-                ra: 4.60, dec: 16.51,
-                distance: '65.3 Light-Years',
-                magnitude: '+0.86 mag',
-                temp: '3,910 K',
-                color: 0xff8c42,
-                radius: 14,
-                visualStyle: 'star',
-                description: 'The fiery "Eye of the Bull" in Taurus. Having exhausted the hydrogen fuel in its core, Aldebaran has expanded to 44 times the diameter of the Sun. NASA’s Pioneer 10 spacecraft is heading in its direction.'
-            },
-            {
-                id: 'arcturus',
-                name: 'Arcturus (Alpha Boötis)',
-                type: 'STAR',
-                subtype: 'Red Giant Star (K1.5 III)',
-                constellation: 'Boötes',
-                ra: 14.26, dec: 19.18,
-                distance: '36.7 Light-Years',
-                magnitude: '-0.05 mag',
-                temp: '4,286 K',
-                color: 0xffaa55,
-                radius: 15,
-                visualStyle: 'star',
-                description: 'The brightest star in the northern celestial hemisphere. An aging red giant roughly 7.1 billion years old moving at high velocity relative to the Solar System.'
-            },
-            {
-                id: 'altair',
-                name: 'Altair (Alpha Aquilae)',
-                type: 'STAR',
-                subtype: 'White Main Sequence Star (A7V)',
-                constellation: 'Aquila',
-                ra: 19.85, dec: 8.87,
-                distance: '16.7 Light-Years',
-                magnitude: '+0.76 mag',
-                temp: '7,550 K',
-                color: 0xe6f4ff,
-                radius: 13,
-                visualStyle: 'star',
-                description: 'The southern vertex of the Summer Triangle and one of the closest naked-eye stars to Earth. It completes a full rotation in just 8.9 hours, flattening its poles by 20 percent.'
-            },
-            {
-                id: 'deneb',
-                name: 'Deneb (Alpha Cygni)',
-                type: 'STAR',
-                subtype: 'Blue-White Supergiant (A2 Ia)',
-                constellation: 'Cygnus',
-                ra: 20.69, dec: 45.28,
-                distance: '2,615 Light-Years',
-                magnitude: '+1.25 mag',
-                temp: '8,525 K',
-                color: 0xdaf0ff,
-                radius: 14,
-                visualStyle: 'star',
-                description: 'The tail of the Swan and one of the most luminous stars in the entire Milky Way—shining with nearly 200,000 times the brightness of the Sun despite being over 2,600 light-years away.'
-            },
-            {
-                id: 'spica',
-                name: 'Spica (Alpha Virginis)',
-                type: 'STAR',
-                subtype: 'Spectroscopic Binary Blue Giant',
-                constellation: 'Virgo',
-                ra: 13.42, dec: -11.16,
-                distance: '250 Light-Years',
-                magnitude: '+0.97 mag',
-                temp: '25,300 K',
-                color: 0x99ccff,
-                radius: 13,
-                visualStyle: 'star',
-                description: 'A tight pair of scorching blue stars orbiting each other every 4 days so closely that mutual gravitational tides distort them into egg-shaped ellipsoids.'
-            },
-            {
-                id: 'canopus',
-                name: 'Canopus (Alpha Carinae)',
-                type: 'STAR',
-                subtype: 'Bright Giant Star (A9 II)',
-                constellation: 'Carina',
-                ra: 6.40, dec: -52.70,
-                distance: '310 Light-Years',
-                magnitude: '-0.74 mag',
-                temp: '7,400 K',
-                color: 0xfff8e7,
-                radius: 15,
-                visualStyle: 'star',
-                description: 'The second-brightest star in the night sky after Sirius. Because of its far-south angular position and extreme brightness, deep-space probes routinely use Canopus for attitude lock and navigation.'
-            }
-        ];
-
-        /**
-         * Constellation Stick Lines (Pairs of RA/DEC coordinates forming recognizable patterns)
-         */
-        const CONSTELLATION_LINES = [
-            // Orion (Betelgeuse - Bellatrix - Belt - Saiph - Rigel)
-            {
-                name: 'ORION',
-                segments: [
-                    [[5.92, 7.41], [5.42, 6.35]],    // Betelgeuse to Bellatrix
-                    [[5.92, 7.41], [5.68, -1.94]],   // Betelgeuse to Alnitak
-                    [[5.42, 6.35], [5.53, -0.30]],   // Bellatrix to Mintaka
-                    [[5.68, -1.94], [5.53, -0.30]],  // Belt
-                    [[5.68, -1.94], [5.79, -9.67]],  // Alnitak to Saiph
-                    [[5.53, -0.30], [5.24, -8.20]],  // Mintaka to Rigel
-                    [[5.79, -9.67], [5.24, -8.20]]   // Saiph to Rigel
-                ]
-            },
-            // Summer Triangle (Vega - Deneb - Altair)
-            {
-                name: 'SUMMER TRIANGLE',
-                segments: [
-                    [[18.61, 38.78], [20.69, 45.28]],
-                    [[20.69, 45.28], [19.85, 8.87]],
-                    [[19.85, 8.87], [18.61, 38.78]]
-                ]
-            },
-            // Ursa Minor / Little Dipper leading to Polaris
-            {
-                name: 'URSA MINOR',
-                segments: [
-                    [[2.53, 89.26], [17.53, 86.58]],
-                    [[17.53, 86.58], [16.76, 82.03]],
-                    [[16.76, 82.03], [15.73, 77.79]],
-                    [[15.73, 77.79], [14.84, 74.15]],
-                    [[14.84, 74.15], [15.34, 71.83]],
-                    [[15.34, 71.83], [16.29, 75.75]],
-                    [[16.29, 75.75], [15.73, 77.79]]
-                ]
-            },
-            // Cassiopeia "W"
-            {
-                name: 'CASSIOPEIA',
-                segments: [
-                    [[0.15, 59.15], [0.67, 56.53]],
-                    [[0.67, 56.53], [0.94, 60.71]],
-                    [[0.94, 60.71], [1.43, 60.23]],
-                    [[1.43, 60.23], [1.90, 63.67]]
-                ]
-            },
-            // Scorpius Hook
-            {
-                name: 'SCORPIUS',
-                segments: [
-                    [[16.00, -22.62], [16.49, -26.43]],
-                    [[16.49, -26.43], [16.83, -34.29]],
-                    [[16.83, -34.29], [17.20, -43.23]],
-                    [[17.20, -43.23], [17.62, -42.99]],
-                    [[17.62, -42.99], [17.56, -37.10]]
-                ]
-            },
-            // Taurus V-Hyades to Pleiades
-            {
-                name: 'TAURUS',
-                segments: [
-                    [[5.63, 21.14], [4.60, 16.51]],
-                    [[4.60, 16.51], [4.33, 15.62]],
-                    [[4.33, 15.62], [4.47, 19.18]],
-                    [[4.47, 19.18], [5.43, 28.60]],
-                    [[4.47, 19.18], [3.79, 24.11]]
-                ]
-            }
-        ];
-
-        const SKY_RADIUS = 500;
-        let scene, camera, renderer;
-        let celestialMeshes = [];
-        let animatedObjects = [];
-        let constellationGroup, gridGroup, horizonGroup;
-
-        // State Control Variables
-        const state = {
-            gyroEnabled: false,
-            vrStereoMode: false,
-            showConstellations: true,
-            showGrid: true,
-            showHorizon: false,
-            audioEnabled: false,
-            fov: 65,
-            targetFov: 65,
-            // Manual spherical look angles (in radians)
-            lon: 85,   // Start pointing near Orion / Taurus
-            lat: 8,
-            // Target auto-guide animation
-            autoGuiding: false,
-            guideLon: 0,
-            guideLat: 0,
-            // Gyroscope raw orientation angles
-            deviceAlpha: 0,
-            deviceBeta: 0,
-            deviceGamma: 0,
-            screenOrientation: 0,
-            // Currently scanned object
-            lockedEntity: null
-        };
-
-        /**
-         * Convert Astronomical Right Ascension (Hours 0..24) & Declination (Deg -90..+90)
-         * into 3D Cartesian coordinates on the inside of the Celestial Sphere
-         */
-        function raDecToVector3(raHours, decDegrees, radius = SKY_RADIUS) {
-            const phi = THREE.MathUtils.degToRad(90 - decDegrees);
-            const theta = THREE.MathUtils.degToRad(raHours * 15); // 24h = 360 deg
-
-            const x = -radius * Math.sin(phi) * Math.cos(theta);
-            const y = radius * Math.cos(phi);
-            const z = radius * Math.sin(phi) * Math.sin(theta);
-            return new THREE.Vector3(x, y, z);
-        }
-
-        /**
-         * Convert a 3D direction vector back into RA (hours) and DEC (degrees) and Compass Heading
-         */
-        function vector3ToSkyCoords(vec) {
-            const v = vec.clone().normalize();
-            const decRad = Math.asin(THREE.MathUtils.clamp(v.y, -1, 1));
-            const decDeg = THREE.MathUtils.radToDeg(decRad);
-
-            let thetaRad = Math.atan2(v.z, -v.x);
-            if (thetaRad < 0) thetaRad += Math.PI * 2;
-            const raHoursTotal = THREE.MathUtils.radToDeg(thetaRad) / 15;
-            const raH = Math.floor(raHoursTotal);
-            const raM = Math.floor((raHoursTotal - raH) * 60);
-
-            const azimuthDeg = Math.round(THREE.MathUtils.radToDeg(thetaRad)) % 360;
-            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-            const compassDir = dirs[Math.round(azimuthDeg / 45) % 8];
-
-            return {
-                raFormatted: `${String(raH).padStart(2, '0')}h ${String(raM).padStart(2, '0')}m`,
-                decFormatted: `${decDeg >= 0 ? '+' : ''}${decDeg.toFixed(1)}°`,
-                compassFormatted: `${compassDir} ${azimuthDeg}°`
-            };
-        }
-
-        /**
-         * Procedural Glow Sprite Texture Generator (No external image URLs required)
-         */
-        function createRadialGlowTexture(colorHex, coreWhite = true) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-            const c = new THREE.Color(colorHex);
-            const r = Math.floor(c.r * 255);
-            const g = Math.floor(c.g * 255);
-            const b = Math.floor(c.b * 255);
-
-            const grad = ctx.createRadialGradient(128, 128, 2, 128, 128, 128);
-            if (coreWhite) {
-                grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-                grad.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 0.95)`);
-            } else {
-                grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
-            }
-            grad.addColorStop(0.45, `rgba(${r}, ${g}, ${b}, 0.35)`);
-            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 256, 256);
-
-            const texture = new THREE.CanvasTexture(canvas);
-            return texture;
-        }
-
-        /**
-         * Procedural Planetary Band Texture Generator
-         */
-        function createPlanetTexture(style) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 512;
-            canvas.height = 256;
-            const ctx = canvas.getContext('2d');
-
-            if (style === 'jupiter') {
-                const bands = ['#c99039', '#e3dccb', '#b86f32', '#d8ca9d', '#a65e2e', '#e0d3b8', '#8c5230'];
-                bands.forEach((col, i) => {
-                    ctx.fillStyle = col;
-                    ctx.fillRect(0, (i / bands.length) * 256, 512, 256 / bands.length + 4);
-                });
-                // Great Red Spot
-                ctx.fillStyle = '#c84b31';
-                ctx.beginPath();
-                ctx.ellipse(320, 165, 36, 20, 0, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (style === 'saturn') {
-                const bands = ['#e3c58e', '#f2dab2', '#cfa968', '#e6c891', '#b89456'];
-                bands.forEach((col, i) => {
-                    ctx.fillStyle = col;
-                    ctx.fillRect(0, (i / bands.length) * 256, 512, 256 / bands.length + 4);
-                });
-            } else if (style === 'mars') {
-                ctx.fillStyle = '#c1440e';
-                ctx.fillRect(0, 0, 512, 256);
-                for (let i = 0; i < 45; i++) {
-                    ctx.fillStyle = i % 2 === 0 ? 'rgba(80, 25, 10, 0.35)' : 'rgba(235, 110, 60, 0.3)';
-                    ctx.beginPath();
-                    ctx.arc(Math.random() * 512, Math.random() * 256, 12 + Math.random() * 40, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                // Polar ice cap
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, 512, 16);
-            } else if (style === 'neptune') {
-                const grad = ctx.createLinearGradient(0, 0, 0, 256);
-                grad.addColorStop(0, '#1d4ed8');
-                grad.addColorStop(0.5, '#3b82f6');
-                grad.addColorStop(1, '#1e3a8a');
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, 512, 256);
-            } else {
-                // Venus / Sun
-                const grad = ctx.createLinearGradient(0, 0, 0, 256);
-                grad.addColorStop(0, '#fde68a');
-                grad.addColorStop(0.5, '#f59e0b');
-                grad.addColorStop(1, '#fef3c7');
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, 512, 256);
-            }
-            return new THREE.CanvasTexture(canvas);
-        }
-
-        function initThreeScene() {
-            const container = document.getElementById('canvas-container');
-            scene = new THREE.Scene();
-
-            camera = new THREE.PerspectiveCamera(state.fov, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.set(0, 0, 0);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.autoClear = false; // Needed for VR stereoscopic split rendering
-            container.appendChild(renderer.domElement);
-
-            // Ambient & Point Illumination
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
-            scene.add(ambientLight);
-
-            // 1. Background 4,500 Realistic Stars + Milky Way Band
-            createBackgroundStarfield();
-
-            // 2. Equatorial Celestial Grid Sphere
-            createCelestialGrid();
-
-            // 3. Constellation Lines
-            createConstellationLines();
-
-            // 4. Optional Horizon Compass Ring
-            createHorizonRing();
-
-            // 5. Populate All Named Celestial Objects from Database
-            buildCelestialCatalogObjects();
-        }
-
-        function createBackgroundStarfield() {
-            const starCount = 4500;
-            const positions = new Float32Array(starCount * 3);
-            const colors = new Float32Array(starCount * 3);
-            const starPalette = [
-                new THREE.Color(0x9bb0ff), // O/B blue
-                new THREE.Color(0xcad7ff), // A blue-white
-                new THREE.Color(0xf8f7ff), // F white
-                new THREE.Color(0xfff4ea), // G yellow-white
-                new THREE.Color(0xffd2a1), // K orange
-                new THREE.Color(0xffcc6f)  // M red-orange
-            ];
-
-            for (let i = 0; i < starCount; i++) {
-                // Concentrate 40% of stars along an inclined Milky Way galactic plane
-                let u = Math.random();
-                let v = Math.random();
-                let theta = u * 2.0 * Math.PI;
-                let phi = Math.acos(2.0 * v - 1.0);
-
-                if (i < starCount * 0.4) {
-                    // Galactic band concentration
-                    const spread = (Math.random() - 0.5) * 0.35;
-                    phi = Math.PI / 2 + spread;
-                }
-
-                const r = SKY_RADIUS * 1.25;
-                let vec = new THREE.Vector3(
-                    r * Math.sin(phi) * Math.cos(theta),
-                    r * Math.cos(phi),
-                    r * Math.sin(phi) * Math.sin(theta)
-                );
-
-                // Tilt Galactic Plane by 62 degrees
-                if (i < starCount * 0.4) {
-                    vec.applyAxisAngle(new THREE.Vector3(1, 0, 0.4).normalize(), 1.08);
-                }
-
-                positions[i * 3] = vec.x;
-                positions[i * 3 + 1] = vec.y;
-                positions[i * 3 + 2] = vec.z;
-
-                const col = starPalette[Math.floor(Math.random() * starPalette.length)];
-                const brightness = 0.45 + Math.random() * 0.55;
-                colors[i * 3] = col.r * brightness;
-                colors[i * 3 + 1] = col.g * brightness;
-                colors[i * 3 + 2] = col.b * brightness;
-            }
-
-            const geom = new THREE.BufferGeometry();
-            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-            const mat = new THREE.PointsMaterial({
-                size: 2.3,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.9,
-                sizeAttenuation: false
-            });
-
-            const starField = new THREE.Points(geom, mat);
-            scene.add(starField);
-        }
-
-        function createCelestialGrid() {
-            gridGroup = new THREE.Group();
-            const gridMat = new THREE.LineBasicMaterial({
-                color: 0x00f3ff,
-                transparent: true,
-                opacity: 0.11
-            });
-            const equatorMat = new THREE.LineBasicMaterial({
-                color: 0x00f3ff,
-                transparent: true,
-                opacity: 0.28
-            });
-
-            // Declination Parallels (-60 to +60 every 30 deg)
-            for (let dec = -60; dec <= 60; dec += 30) {
-                const points = [];
-                for (let ra = 0; ra <= 24; ra += 0.25) {
-                    points.push(raDecToVector3(ra, dec, SKY_RADIUS * 1.05));
-                }
-                const geo = new THREE.BufferGeometry().setFromPoints(points);
-                gridGroup.add(new THREE.Line(geo, dec === 0 ? equatorMat : gridMat));
-            }
-
-            // Right Ascension Meridians (every 2 hours = 30 deg)
-            for (let ra = 0; ra < 24; ra += 2) {
-                const points = [];
-                for (let dec = -85; dec <= 85; dec += 5) {
-                    points.push(raDecToVector3(ra, dec, SKY_RADIUS * 1.05));
-                }
-                const geo = new THREE.BufferGeometry().setFromPoints(points);
-                gridGroup.add(new THREE.Line(geo, gridMat));
-            }
-
-            scene.add(gridGroup);
-        }
-
-        function createConstellationLines() {
-            constellationGroup = new THREE.Group();
-            const lineMat = new THREE.LineBasicMaterial({
-                color: 0x38bdf8,
-                transparent: true,
-                opacity: 0.42
-            });
-
-            CONSTELLATION_LINES.forEach(constellation => {
-                constellation.segments.forEach(pair => {
-                    const p1 = raDecToVector3(pair[0][0], pair[0][1], SKY_RADIUS * 1.01);
-                    const p2 = raDecToVector3(pair[1][0], pair[1][1], SKY_RADIUS * 1.01);
-                    const geo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
-                    constellationGroup.add(new THREE.Line(geo, lineMat));
-                });
-            });
-
-            scene.add(constellationGroup);
-        }
-
-        function createHorizonRing() {
-            horizonGroup = new THREE.Group();
-            const geo = new THREE.RingGeometry(SKY_RADIUS * 0.96, SKY_RADIUS * 0.98, 64);
-            geo.rotateX(Math.PI / 2);
-            const mat = new THREE.MeshBasicMaterial({
-                color: 0x10b981,
-                side: THREE.DoubleSide,
-                transparent: true,
-                opacity: 0.25
-            });
-            const ring = new THREE.Mesh(geo, mat);
-            horizonGroup.add(ring);
-
-            // Subtle translucent ground hemisphere
-            const domeGeo = new THREE.SphereGeometry(SKY_RADIUS * 0.97, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-            const domeMat = new THREE.MeshBasicMaterial({
-                color: 0x04121c,
-                side: THREE.BackSide,
-                transparent: true,
-                opacity: 0.72
-            });
-            horizonGroup.add(new THREE.Mesh(domeGeo, domeMat));
-            horizonGroup.visible = state.showHorizon;
-            scene.add(horizonGroup);
-        }
-
-        function buildCelestialCatalogObjects() {
-            CELESTIAL_DATABASE.forEach(item => {
-                const pos = raDecToVector3(item.ra, item.dec, SKY_RADIUS);
-                const entityGroup = new THREE.Group();
-                entityGroup.position.copy(pos);
-                entityGroup.lookAt(0, 0, 0);
-
-                const style = item.visualStyle;
-
-                if (style.startsWith('blackhole')) {
-                    // Event Horizon Shadow Core
-                    const coreGeo = new THREE.SphereGeometry(item.radius * 0.42, 32, 32);
-                    const coreMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-                    const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-                    entityGroup.add(coreMesh);
-
-                    // Relativistic Photon Ring
-                    const photonGeo = new THREE.RingGeometry(item.radius * 0.44, item.radius * 0.54, 64);
-                    const photonMat = new THREE.MeshBasicMaterial({
-                        color: 0xffffff,
-                        side: THREE.DoubleSide,
-                        transparent: true,
-                        opacity: 0.9
-                    });
-                    entityGroup.add(new THREE.Mesh(photonGeo, photonMat));
-
-                    // Tilted Glowing Accretion Disk
-                    const diskGeo = new THREE.RingGeometry(item.radius * 0.56, item.radius * 1.45, 64);
-                    const diskMat = new THREE.MeshBasicMaterial({
-                        color: item.color,
-                        side: THREE.DoubleSide,
-                        transparent: true,
-                        opacity: 0.75
-                    });
-                    const diskMesh = new THREE.Mesh(diskGeo, diskMat);
-                    diskMesh.rotation.x = 1.18;
-                    diskMesh.rotation.y = 0.35;
-                    entityGroup.add(diskMesh);
-
-                    // Relativistic Plasma Halo Sprite
-                    const haloMat = new THREE.SpriteMaterial({
-                        map: createRadialGlowTexture(item.color, false),
-                        color: item.color,
-                        transparent: true,
-                        blending: THREE.AdditiveBlending
-                    });
-                    const halo = new THREE.Sprite(haloMat);
-                    halo.scale.set(item.radius * 3.8, item.radius * 3.8, 1);
-                    entityGroup.add(halo);
-
-                    animatedObjects.push({ mesh: diskMesh, rotZ: 0.025 });
-
-                } else if (style === 'saturn' || style === 'jupiter' || style === 'mars' || style === 'venus' || style === 'neptune') {
-                    // 3D Textured Planet Sphere
-                    const planetGeo = new THREE.SphereGeometry(item.radius * 0.55, 32, 32);
-                    const planetMat = new THREE.MeshBasicMaterial({
-                        map: createPlanetTexture(style)
-                    });
-                    const planetMesh = new THREE.Mesh(planetGeo, planetMat);
-                    entityGroup.add(planetMesh);
-
-                    if (style === 'saturn') {
-                        const ringGeo = new THREE.RingGeometry(item.radius * 0.75, item.radius * 1.45, 64);
-                        const ringMat = new THREE.MeshBasicMaterial({
-                            color: 0xe6c891,
-                            side: THREE.DoubleSide,
-                            transparent: true,
-                            opacity: 0.78
-                        });
-                        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-                        ringMesh.rotation.x = 1.25;
-                        ringMesh.rotation.y = 0.25;
-                        entityGroup.add(ringMesh);
-                    }
-
-                    // Atmospheric Outer Glow
-                    const glowSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                        map: createRadialGlowTexture(item.color, false),
-                        transparent: true,
-                        opacity: 0.65,
-                        blending: THREE.AdditiveBlending
-                    }));
-                    glowSprite.scale.set(item.radius * 2.6, item.radius * 2.6, 1);
-                    entityGroup.add(glowSprite);
-
-                    animatedObjects.push({ mesh: planetMesh, rotY: 0.008 });
-
-                } else if (style.startsWith('nebula') || style === 'galaxy' || style === 'cluster_blue') {
-                    // Multi-layered Volumetric Cloud Sprites for Nebulae & Galaxies
-                    const layers = 3;
-                    for (let l = 0; l < layers; l++) {
-                        const spriteMat = new THREE.SpriteMaterial({
-                            map: createRadialGlowTexture(item.color, l === 0),
-                            transparent: true,
-                            opacity: 0.55 - l * 0.12,
-                            blending: THREE.AdditiveBlending
-                        });
-                        const sprite = new THREE.Sprite(spriteMat);
-                        const s = item.radius * (1.8 + l * 0.9);
-                        sprite.scale.set(s, style === 'galaxy' ? s * 0.55 : s, 1);
-                        entityGroup.add(sprite);
-                    }
-
-                    if (style === 'galaxy') {
-                        const spiralGeo = new THREE.RingGeometry(item.radius * 0.3, item.radius * 1.3, 48);
-                        const spiralMat = new THREE.MeshBasicMaterial({
-                            color: item.color,
-                            side: THREE.DoubleSide,
-                            transparent: true,
-                            opacity: 0.35
-                        });
-                        const spiral = new THREE.Mesh(spiralGeo, spiralMat);
-                        spiral.rotation.x = 0.95;
-                        entityGroup.add(spiral);
-                        animatedObjects.push({ mesh: spiral, rotZ: 0.006 });
-                    }
-
-                } else {
-                    // Stars & Sun
-                    const isSun = style === 'sun';
-                    const coreSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-                        map: createRadialGlowTexture(item.color, true),
-                        transparent: true,
-                        blending: THREE.AdditiveBlending
-                    }));
-                    const scale = isSun ? item.radius * 3.8 : item.radius * 2.2;
-                    coreSprite.scale.set(scale, scale, 1);
-                    entityGroup.add(coreSprite);
-
-                    if (isSun) {
-                        const sunCore = new THREE.Mesh(
-                            new THREE.SphereGeometry(item.radius * 0.55, 32, 32),
-                            new THREE.MeshBasicMaterial({ color: 0xfff5cc })
-                        );
-                        entityGroup.add(sunCore);
-                    }
-                }
-
-                entityGroup.userData = item;
-                scene.add(entityGroup);
-                celestialMeshes.push(entityGroup);
-            });
-        }
-
-        let audioCtx = null;
-        let ambientGain = null;
-
-        function initOrToggleAudio() {
-            if (!audioCtx) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContextClass();
-
-                // Create warm deep space pad drone (2 detuned sine/triangle oscillators)
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                ambientGain = audioCtx.createGain();
-
-                osc1.type = 'sine';
-                osc1.frequency.setValueAtTime(65.41, audioCtx.currentTime); // Deep C2
-                osc2.type = 'triangle';
-                osc2.frequency.setValueAtTime(98.00, audioCtx.currentTime); // G2 fifth
-
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.setValueAtTime(240, audioCtx.currentTime);
-
-                ambientGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-
-                osc1.connect(filter);
-                osc2.connect(filter);
-                filter.connect(ambientGain);
-                ambientGain.connect(audioCtx.destination);
-
-                osc1.start();
-                osc2.start();
-                state.audioEnabled = true;
-            } else {
-                state.audioEnabled = !state.audioEnabled;
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                ambientGain.gain.setTargetAtTime(state.audioEnabled ? 0.08 : 0.0, audioCtx.currentTime, 0.2);
-            }
-
-            const icon = document.getElementById('audio-icon');
-            if (state.audioEnabled) {
-                icon.className = 'fa-solid fa-volume-high text-cyan-400';
-                showToast('Deep Space Ambient Audio Online');
-            } else {
-                icon.className = 'fa-solid fa-volume-xmark text-slate-400';
-                showToast('Audio Muted');
-            }
-        }
-
-        function playScannerLockBeep(entityType) {
-            if (!state.audioEnabled || !audioCtx) return;
-            try {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-
-                const freqMap = {
-                    'STAR': 880,
-                    'PLANET': 660,
-                    'BLACK HOLE': 320,
-                    'NEBULA': 528
-                };
-                const baseFreq = freqMap[entityType] || 740;
-                osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.25, audioCtx.currentTime + 0.14);
-
-                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.16);
-
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.17);
-            } catch (e) {
-                // Ignore audio context restrictions
-            }
-        }
-
-        /**
-         * Accurate W3C DeviceOrientation to Three.js Camera Quaternion Conversion
-         * Prevents gimbal lock when pointing phone straight up at the zenith!
-         */
-        const zee = new THREE.Vector3(0, 0, 1);
-        const euler = new THREE.Euler();
-        const q0 = new THREE.Quaternion();
-        const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -PI/2 around X axis
-
-        function updateCameraFromGyroscope() {
-            const alpha = THREE.MathUtils.degToRad(state.deviceAlpha || 0); // Z
-            const beta = THREE.MathUtils.degToRad(state.deviceBeta || 0);   // X'
-            const gamma = THREE.MathUtils.degToRad(state.deviceGamma || 0); // Y''
-            const orient = THREE.MathUtils.degToRad(state.screenOrientation || 0);
-
-            euler.set(beta, alpha, -gamma, 'YXZ');
-            camera.quaternion.setFromEuler(euler);
-            camera.quaternion.multiply(q1);
-            camera.quaternion.multiply(q0.setFromAxisAngle(zee, -orient));
-        }
-
-        async function requestGyroscopePermission() {
-            try {
-                // iOS 13+ requires explicit permission triggered by user gesture
-                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    const permissionState = await DeviceOrientationEvent.requestPermission();
-                    if (permissionState !== 'granted') {
-                        showToast('Gyroscope permission denied. Using Touch Drag mode.');
-                        return false;
-                    }
-                }
-
-                window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-                window.addEventListener('orientationchange', updateScreenOrientation, false);
-                updateScreenOrientation();
-
-                state.gyroEnabled = true;
-                state.autoGuiding = false;
-                updateGyroUI();
-                showToast('Mobile Gyroscope Sensor Active — Rotate Device!');
-                return true;
-            } catch (err) {
-                showToast('Gyroscope unavailable on this device. Touch/Mouse active.');
-                return false;
-            }
-        }
-
-        function handleDeviceOrientation(event) {
-            if (event.alpha === null && event.beta === null) return;
-            state.deviceAlpha = event.alpha || 0;
-            state.deviceBeta = event.beta || 0;
-            state.deviceGamma = event.gamma || 0;
-        }
-
-        function updateScreenOrientation() {
-            state.screenOrientation = (window.screen && window.screen.orientation && window.screen.orientation.angle) || window.orientation || 0;
-        }
-
-        function toggleGyroscope() {
-            if (state.gyroEnabled) {
-                state.gyroEnabled = false;
-                window.removeEventListener('deviceorientation', handleDeviceOrientation, true);
-                updateGyroUI();
-                showToast('Switched to Manual Touch / Drag Navigation');
-            } else {
-                requestGyroscopePermission();
-            }
-        }
-
-        function updateGyroUI() {
-            const btn = document.getElementById('btn-gyro');
-            const dot = document.getElementById('gyro-dot');
-            const badge = document.getElementById('sensor-badge');
-
-            if (state.gyroEnabled) {
-                btn.classList.add('active');
-                dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-                badge.textContent = 'GYRO LIVE';
-                badge.className = 'text-[10px] font-mono-tech px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/40';
-            } else {
-                btn.classList.remove('active');
-                dot.className = 'w-2 h-2 rounded-full bg-slate-500';
-                badge.textContent = 'TOUCH / DRAG';
-                badge.className = 'text-[10px] font-mono-tech px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/40';
-            }
-        }
-
-        let isPointerDown = false;
-        let startPointerX = 0;
-        let startPointerY = 0;
-        let startLon = 0;
-        let startLat = 0;
-        let initialPinchDist = null;
-
-        function initTouchAndMouseControls() {
-            const dom = renderer.domElement;
-
-            dom.addEventListener('pointerdown', (e) => {
-                if (state.gyroEnabled) return;
-                isPointerDown = true;
-                state.autoGuiding = false;
-                startPointerX = e.clientX;
-                startPointerY = e.clientY;
-                startLon = state.lon;
-                startLat = state.lat;
-            });
-
-            window.addEventListener('pointermove', (e) => {
-                if (!isPointerDown || state.gyroEnabled) return;
-                const sensitivity = state.fov / 450;
-                state.lon = (startPointerX - e.clientX) * sensitivity + startLon;
-                state.lat = Math.max(-88, Math.min(88, (e.clientY - startPointerY) * sensitivity + startLat));
-            });
-
-            window.addEventListener('pointerup', () => {
-                isPointerDown = false;
-            });
-
-            // Mouse wheel zoom
-            dom.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                state.targetFov = THREE.MathUtils.clamp(state.targetFov + e.deltaY * 0.04, 20, 85);
-                document.getElementById('fov-slider').value = state.targetFov;
-            }, { passive: false });
-
-            // Mobile Pinch-to-Zoom
-            dom.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 2) {
-                    const dx = e.touches[0].clientX - e.touches[1].clientX;
-                    const dy = e.touches[0].clientY - e.touches[1].clientY;
-                    initialPinchDist = Math.hypot(dx, dy);
-                }
-            }, { passive: true });
-
-            dom.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 2 && initialPinchDist) {
-                    const dx = e.touches[0].clientX - e.touches[1].clientX;
-                    const dy = e.touches[0].clientY - e.touches[1].clientY;
-                    const dist = Math.hypot(dx, dy);
-                    const delta = (initialPinchDist - dist) * 0.15;
-                    state.targetFov = THREE.MathUtils.clamp(state.targetFov + delta, 20, 85);
-                    initialPinchDist = dist;
-                    document.getElementById('fov-slider').value = state.targetFov;
-                }
-            }, { passive: true });
-
-            dom.addEventListener('touchend', () => {
-                initialPinchDist = null;
-            });
-        }
-
-        const labelElements = new Map();
-
-        function createFloatingScreenLabels() {
-            const container = document.getElementById('labels-container');
-            container.innerHTML = '';
-
-            CELESTIAL_DATABASE.forEach(item => {
-                const el = document.createElement('div');
-                el.className = 'absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto cursor-pointer transition-opacity duration-150 flex items-center gap-1.5 group';
-                
-                const badgeColor = item.type === 'BLACK HOLE' ? 'border-amber-400/70 text-amber-300'
-                    : item.type === 'PLANET' ? 'border-emerald-400/70 text-emerald-300'
-                    : item.type === 'NEBULA' ? 'border-purple-400/70 text-purple-300'
-                    : 'border-cyan-400/60 text-cyan-200';
-
-                el.innerHTML = `
-                    <div class="w-2 h-2 rounded-full bg-current opacity-80 group-hover:scale-150 transition"></div>
-                    <div class="px-2 py-0.5 rounded bg-slate-950/75 border ${badgeColor} text-[10px] font-mono-tech tracking-wider whitespace-nowrap shadow">
-                        ${item.name.split(' (')[0]}
-                    </div>
-                `;
-
-                // Clicking any floating label slews/locks onto that celestial body
-                el.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    slewToCelestialObject(item);
-                });
-
-                container.appendChild(el);
-                labelElements.set(item.id, el);
-            });
-        }
-
-        /**
-         * Detect which celestial entity is closest to the center of the camera view (Scanner Reticle)
-         */
-        function scanReticleTarget() {
-            const camDir = new THREE.Vector3();
-            camera.getWorldDirection(camDir);
-
-            let closestItem = null;
-            let smallestAngle = Infinity;
-
-            // Angular threshold scales slightly with FOV zoom
-            const lockThresholdRad = THREE.MathUtils.degToRad(Math.max(4.5, state.fov * 0.14));
-
-            celestialMeshes.forEach(mesh => {
-                const itemDir = mesh.position.clone().normalize();
-                const angle = camDir.angleTo(itemDir);
-
-                if (angle < lockThresholdRad && angle < smallestAngle) {
-                    smallestAngle = angle;
-                    closestItem = mesh.userData;
-                }
-
-                // Update 2D Floating Screen Label Position
-                const labelEl = labelElements.get(mesh.userData.id);
-                if (!labelEl) return;
-
-                if (state.vrStereoMode) {
-                    labelEl.style.opacity = '0';
-                    return;
-                }
-
-                // Only show labels in front hemisphere of camera
-                if (angle < Math.PI / 2.2) {
-                    const projected = mesh.position.clone().project(camera);
-                    const x = (projected.x * 0.5 + 0.5) * window.innerWidth;
-                    const y = (-(projected.y * 0.5) + 0.5) * window.innerHeight;
-
-                    labelEl.style.transform = `translate3d(${x}px, ${y + 24}px, 0)`;
-                    labelEl.style.opacity = angle < lockThresholdRad ? '1' : '0.65';
-                } else {
-                    labelEl.style.opacity = '0';
-                }
-            });
-
-            // Update Inspector HUD if locked target changed
-            if (closestItem && (!state.lockedEntity || state.lockedEntity.id !== closestItem.id)) {
-                state.lockedEntity = closestItem;
-                updateEntityInspectorHUD(closestItem, true);
-                playScannerLockBeep(closestItem.type);
-            } else if (!closestItem && state.lockedEntity) {
-                // Keep the last inspected entity on the card, but reset the reticle ring status
-                document.getElementById('reticle-svg').classList.remove('reticle-locked');
-                const lockBadge = document.getElementById('reticle-lock-badge');
-                lockBadge.textContent = 'SCANNING SECTOR...';
-                lockBadge.style.opacity = '0';
-                state.lockedEntity = null;
-            }
-
-            // Update Top Telemetry Bar RA / DEC / Compass
-            const coords = vector3ToSkyCoords(camDir);
-            document.getElementById('coord-ra').textContent = coords.raFormatted;
-            document.getElementById('coord-dec').textContent = coords.decFormatted;
-            document.getElementById('coord-compass').textContent = coords.compassFormatted;
-            document.getElementById('coord-fov').textContent = `${Math.round(state.fov)}°`;
-        }
-
-        function updateEntityInspectorHUD(entity, isLiveLock) {
-            const typeBadge = document.getElementById('entity-type-badge');
-            const nameEl = document.getElementById('entity-name');
-            const constEl = document.getElementById('entity-constellation');
-            const descEl = document.getElementById('entity-desc');
-            const distEl = document.getElementById('entity-dist');
-            const magEl = document.getElementById('entity-mag');
-            const tempEl = document.getElementById('entity-temp');
-            const reticleSvg = document.getElementById('reticle-svg');
-            const lockBadge = document.getElementById('reticle-lock-badge');
-
-            nameEl.textContent = entity.name;
-            constEl.textContent = `${entity.constellation} • ${entity.subtype}`;
-            descEl.textContent = entity.description;
-            distEl.textContent = entity.distance;
-            magEl.textContent = entity.magnitude;
-            tempEl.textContent = entity.temp;
-
-            // Color styling by entity category
-            const styles = {
-                'STAR': 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40',
-                'PLANET': 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40',
-                'BLACK HOLE': 'bg-amber-500/20 text-amber-300 border-amber-400/40',
-                'NEBULA': 'bg-purple-500/20 text-purple-300 border-purple-400/40'
-            };
-            typeBadge.className = `text-[10px] font-mono-tech uppercase tracking-widest px-2 py-0.5 rounded border ${styles[entity.type] || styles['STAR']}`;
-            typeBadge.textContent = entity.type;
-
-            if (isLiveLock) {
-                reticleSvg.classList.add('reticle-locked');
-                lockBadge.textContent = `LOCKED // ${entity.name.toUpperCase()}`;
-                lockBadge.style.opacity = '1';
-            }
-        }
-
-        /**
-         * Slew camera smoothly to any selected object in the catalog
-         */
-        function slewToCelestialObject(item) {
-            if (state.gyroEnabled) {
-                showToast(`Gyroscope active: Rotate toward ${item.constellation} (RA ${item.ra}h, DEC ${item.dec}°)`);
-                updateEntityInspectorHUD(item, false);
-                return;
-            }
-
-            // Convert RA/DEC to our manual lon/lat angles
-            state.guideLat = item.dec;
-            state.guideLon = item.ra * 15 - 180;
-            state.autoGuiding = true;
-            updateEntityInspectorHUD(item, true);
-            showToast(`Slewing Telescope to ${item.name}...`);
-        }
-
-        function renderCatalogDrawer(filterType = 'ALL', searchQuery = '') {
-            const listEl = document.getElementById('catalog-list');
-            listEl.innerHTML = '';
-
-            const filtered = CELESTIAL_DATABASE.filter(item => {
-                const matchesType = filterType === 'ALL' || item.type === filterType;
-                const q = searchQuery.toLowerCase().trim();
-                const matchesQuery = !q ||
-                    item.name.toLowerCase().includes(q) ||
-                    item.constellation.toLowerCase().includes(q) ||
-                    item.subtype.toLowerCase().includes(q) ||
-                    item.type.toLowerCase().includes(q);
-                return matchesType && matchesQuery;
-            });
-
-            filtered.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'p-3 rounded-xl bg-slate-900/75 hover:bg-slate-800/90 border border-slate-800 hover:border-cyan-400/50 cursor-pointer transition flex items-center justify-between gap-3';
-
-                const iconMap = {
-                    'STAR': 'fa-sun text-cyan-300',
-                    'PLANET': 'fa-earth-americas text-emerald-300',
-                    'BLACK HOLE': 'fa-circle-radiation text-amber-400',
-                    'NEBULA': 'fa-cloud-Showers-heavy text-purple-300'
-                };
-
-                card.innerHTML = `
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-9 h-9 rounded-lg bg-slate-950 border border-slate-700 flex items-center justify-center shrink-0">
-                            <i class="fa-solid ${iconMap[item.type] || 'fa-star text-cyan-300'}"></i>
+        <!-- Bottom Area: Detected Entity Inspector & Layer Filters -->
+        <div class="flex flex-col md:flex-row items-stretch md:items-end justify-between gap-3 w-full">
+            
+            <!-- Left/Bottom: Active Target Live Telemetry Card -->
+            <div id="entity-card" class="hud-panel rounded-2xl p-4 sm:p-5 pointer-events-auto w-full md:max-w-md lg:max-w-lg transition-all duration-300">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div id="entity-badge-icon" class="w-11 h-11 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shrink-0">
+                            <i class="ph-fill ph-sparkle text-2xl"></i>
                         </div>
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-2">
-                                <h4 class="font-orbitron font-semibold text-xs text-white truncate">${item.name}</h4>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span id="entity-type" class="text-[10px] font-mono-tech uppercase tracking-widest px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+                                    SUPERMASSIVE BLACK HOLE
+                                </span>
+                                <span id="entity-constellation" class="text-xs font-mono-tech text-slate-400">
+                                    Sagittarius
+                                </span>
                             </div>
-                            <p class="text-[11px] text-slate-400 truncate">${item.subtype} • ${item.distance}</p>
+                            <h2 id="entity-name" class="font-display text-lg sm:text-xl font-bold text-white mt-0.5">
+                                Sagittarius A*
+                            </h2>
                         </div>
                     </div>
-                    <button class="hud-btn px-2.5 py-1 rounded-lg text-[10px] font-mono-tech shrink-0">
-                        LOCATE
+                    <!-- Zoom / Inspect Button -->
+                    <button id="btn-zoom-target" class="hud-button px-3 py-1.5 rounded-xl text-xs font-mono-tech flex items-center gap-1.5 text-cyan-300 shrink-0">
+                        <i class="ph ph-crosshair"></i>
+                        <span id="zoom-label">Zoom In</span>
                     </button>
-                `;
+                </div>
 
-                card.addEventListener('click', () => {
-                    document.getElementById('catalog-drawer').classList.add('translate-x-full');
-                    slewToCelestialObject(item);
-                });
+                <!-- Description -->
+                <p id="entity-desc" class="text-xs sm:text-sm text-slate-300 leading-relaxed mt-3 line-clamp-3 sm:line-clamp-none">
+                    Rotate your phone or drag the sky to align the quantum reticle with any star, planet, nebula, galaxy, or black hole for real-time astrophysical telemetry.
+                </p>
 
-                listEl.appendChild(card);
-            });
-        }
-
-        function narrateCurrentEntity() {
-            const name = document.getElementById('entity-name').textContent;
-            const desc = document.getElementById('entity-desc').textContent;
-            if (!('speechSynthesis' in window)) {
-                showToast('Speech synthesis not supported on this browser.');
-                return;
-            }
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(`${name}. ${desc}`);
-            utterance.rate = 1.0;
-            utterance.pitch = 0.95;
-            window.speechSynthesis.speak(utterance);
-            showToast(`Voice Telemetry: ${name}`);
-        }
-
-        function showToast(msg) {
-            const banner = document.getElementById('toast-banner');
-            const text = document.getElementById('toast-message');
-            text.textContent = msg;
-            banner.style.opacity = '1';
-            clearTimeout(window._toastTimer);
-            window._toastTimer = setTimeout(() => {
-                banner.style.opacity = '0';
-            }, 3200);
-        }
-
-        function bindUIEvents() {
-            // Welcome Modal Launch Buttons
-            document.getElementById('start-gyro-btn').addEventListener('click', async () => {
-                document.getElementById('welcome-modal').classList.add('hidden');
-                await requestGyroscopePermission();
-            });
-
-            document.getElementById('start-touch-btn').addEventListener('click', () => {
-                document.getElementById('welcome-modal').classList.add('hidden');
-                showToast('Touch & Mouse Drag Mode Active — Drag to explore the cosmos!');
-            });
-
-            document.getElementById('help-modal-btn').addEventListener('click', () => {
-                document.getElementById('welcome-modal').classList.remove('hidden');
-            });
-
-            // Bottom Dock Controls
-            document.getElementById('btn-gyro').addEventListener('click', toggleGyroscope);
-
-            document.getElementById('btn-vr').addEventListener('click', (e) => {
-                state.vrStereoMode = !state.vrStereoMode;
-                e.currentTarget.classList.toggle('active', state.vrStereoMode);
-                document.getElementById('vr-divider').style.display = state.vrStereoMode ? 'block' : 'none';
-                document.getElementById('center-reticle').style.display = state.vrStereoMode ? 'none' : 'flex';
-
-                // Request fullscreen automatically when entering VR mode if supported
-                if (state.vrStereoMode && document.documentElement.requestFullscreen) {
-                    document.documentElement.requestFullscreen().catch(() => {});
-                }
-                showToast(state.vrStereoMode ? 'Stereoscopic VR Split-Screen Enabled' : 'Standard Fullscreen View');
-            });
-
-            document.getElementById('btn-constellations').addEventListener('click', (e) => {
-                state.showConstellations = !state.showConstellations;
-                constellationGroup.visible = state.showConstellations;
-                e.currentTarget.classList.toggle('active', state.showConstellations);
-            });
-
-            document.getElementById('btn-grid').addEventListener('click', (e) => {
-                state.showGrid = !state.showGrid;
-                gridGroup.visible = state.showGrid;
-                e.currentTarget.classList.toggle('active', state.showGrid);
-            });
-
-            document.getElementById('btn-horizon').addEventListener('click', (e) => {
-                state.showHorizon = !state.showHorizon;
-                horizonGroup.visible = state.showHorizon;
-                e.currentTarget.classList.toggle('active', state.showHorizon);
-            });
-
-            // Telescope Zoom Button & Slider
-            document.getElementById('btn-zoom-target').addEventListener('click', () => {
-                const zoomedIn = state.targetFov < 40;
-                state.targetFov = zoomedIn ? 65 : 26;
-                document.getElementById('fov-slider').value = state.targetFov;
-                document.getElementById('zoom-btn-text').textContent = zoomedIn ? 'ZOOM' : 'RESET';
-            });
-
-            document.getElementById('fov-slider').addEventListener('input', (e) => {
-                state.targetFov = parseFloat(e.target.value);
-            });
-
-            // Audio & Voice Narration
-            document.getElementById('audio-toggle-btn').addEventListener('click', initOrToggleAudio);
-            document.getElementById('btn-narrate').addEventListener('click', narrateCurrentEntity);
-
-            // Catalog Drawer Open/Close & Filtering
-            const drawer = document.getElementById('catalog-drawer');
-            document.getElementById('desktop-catalog-btn').addEventListener('click', () => drawer.classList.remove('translate-x-full'));
-            document.getElementById('mobile-search-btn').addEventListener('click', () => drawer.classList.remove('translate-x-full'));
-            document.getElementById('close-catalog-btn').addEventListener('click', () => drawer.classList.add('translate-x-full'));
-
-            let currentFilter = 'ALL';
-            document.querySelectorAll('.catalog-filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.catalog-filter-btn').forEach(b => b.classList.remove('active'));
-                    e.currentTarget.classList.add('active');
-                    currentFilter = e.currentTarget.dataset.filter;
-                    renderCatalogDrawer(currentFilter, document.getElementById('catalog-search').value);
-                });
-            });
-
-            document.getElementById('catalog-search').addEventListener('input', (e) => {
-                renderCatalogDrawer(currentFilter, e.target.value);
-            });
-
-            // Window Resize Handler
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-        }
-
-        /**
-         * Main 60FPS Animation & Stereoscopic Render Loop
-         */
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // Smooth FOV Telescope Zoom Interpolation
-            if (Math.abs(state.fov - state.targetFov) > 0.05) {
-                state.fov += (state.targetFov - state.fov) * 0.12;
-                camera.fov = state.fov;
-                camera.updateProjectionMatrix();
-            }
-
-            // Rotate Accretion Disks, Galaxies, and Planets
-            animatedObjects.forEach(obj => {
-                if (obj.rotZ) obj.mesh.rotation.z += obj.rotZ;
-                if (obj.rotY) obj.mesh.rotation.y += obj.rotY;
-            });
-
-            // Update Camera Orientation (Gyroscope vs Touch/Mouse)
-            if (state.gyroEnabled) {
-                updateCameraFromGyroscope();
-            } else {
-                if (state.autoGuiding) {
-                    const dLon = state.guideLon - state.lon;
-                    const dLat = state.guideLat - state.lat;
-                    state.lon += dLon * 0.08;
-                    state.lat += dLat * 0.08;
-                    if (Math.hypot(dLon, dLat) < 0.15) state.autoGuiding = false;
-                }
-
-                const phi = THREE.MathUtils.degToRad(90 - state.lat);
-                const theta = THREE.MathUtils.degToRad(state.lon);
-                const lookTarget = new THREE.Vector3(
-                    500 * Math.sin(phi) * Math.cos(theta),
-                    500 * Math.cos(phi),
-                    500 * Math.sin(phi) * Math.sin(theta)
-                );
-                camera.lookAt(lookTarget);
-            }
-
-            // Perform Reticle Ray-Cone Detection & Update HUD
-            scanReticleTarget();
-
-            // Render either Standard Fullscreen or Stereoscopic Dual-Eye VR Split-Screen
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            renderer.clear();
-
-            if (state.vrStereoMode) {
-                renderer.setScissorTest(true);
-
-                // Left Eye Viewport
-                renderer.setViewport(0, 0, w / 2, h);
-                renderer.setScissor(0, 0, w / 2, h);
-                camera.aspect = (w / 2) / h;
-                camera.updateProjectionMatrix();
-                renderer.render(scene, camera);
-
-                // Right Eye Viewport
-                renderer.setViewport(w / 2, 0, w / 2, h);
-                renderer.setScissor(w / 2, 0, w / 2, h);
-                renderer.render(scene, camera);
-
-                renderer.setScissorTest(false);
-            } else {
-                renderer.setViewport(0, 0, w, h);
-                camera.aspect = w / h;
-                camera.updateProjectionMatrix();
-                renderer.render(scene, camera);
-            }
-        }
-
-        // Start application on window load
-        window.onload = function () {
-            initThreeScene();
-            createFloatingScreenLabels();
-            renderCatalogDrawer();
-            initTouchAndMouseControls();
-            bindUIEvents();
-            // Pre-populate HUD with Orion Nebula or Betelgeuse on startup
-            updateEntityInspectorHUD(CELESTIAL_DATABASE[9], false);
-            animate();
-        };
-    </script>
-</body>
-</html>
+                <!-- Scientific Metrics Grid -->
+                <div class="grid grid-cols-3 gap-2 mt-3.5 pt-3 border-t border-slate-800/80 text-xs font-mono-tech">
+                    <div class="bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                        <div class="text-[10px] text-slate-400 uppercase">Distance</div>
+                        <div id="entity-dist" class="text-slate-100 font-medium truncate">26,670 ly</div>
+                    </div>
+                    <div class="bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                        <div class="text-[10px] text-slate-400 uppercase
